@@ -1,0 +1,6 @@
+yt-dlp
+customtkinter>=5.2.0
+Pillow>=10.0.0
+packaging>=23.0
+requests
+spotipy
