@@ -217,7 +217,9 @@ class VideoDownloader:
         url: str,
         output_path: str,
         quality: str = "1080p",
-        format_ext: str = "mp4"
+        format_ext: str = "mp4",
+        force_reencode: bool = False,
+        download_playlist: bool = False
     ) -> bool:
         """
         Download video in specified quality.
@@ -227,6 +229,8 @@ class VideoDownloader:
             output_path: Directory to save the file
             quality: Video quality (e.g., "1080p", "720p")
             format_ext: Output format (e.g., "mp4", "mkv")
+            force_reencode: Force re-encoding to H.264/AAC for Discord compatibility
+            download_playlist: If True, download the entire playlist if URL refers to one
             
         Returns:
             True if successful, False otherwise
@@ -234,6 +238,10 @@ class VideoDownloader:
         # Parse quality to get height
         height_match = re.match(r'(\d+)p?', quality)
         height = int(height_match.group(1)) if height_match else 1080
+        
+        # Detect if URL is from TikTok (needs re-encoding for Discord)
+        is_tiktok = 'tiktok.com' in url.lower() or 'vm.tiktok' in url.lower()
+        needs_reencode = force_reencode or is_tiktok
         
         # Format string for best video + audio up to specified height
         format_string = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]/best'
@@ -245,7 +253,19 @@ class VideoDownloader:
             'merge_output_format': format_ext,
             'quiet': True,
             'no_warnings': True,
+            'noplaylist': not download_playlist,
         }
+        
+        # Add re-encoding postprocessor for TikTok videos (Discord compatibility)
+        if needs_reencode and format_ext == 'mp4':
+            ydl_opts['postprocessors'] = [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }]
+            # Force H.264 video codec and AAC audio for maximum compatibility
+            ydl_opts['postprocessor_args'] = {
+                'FFmpegVideoConvertor': ['-c:v', 'libx264', '-c:a', 'aac', '-movflags', '+faststart']
+            }
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -261,7 +281,8 @@ class VideoDownloader:
         url: str,
         output_path: str,
         quality: str = "320kbps",
-        format_ext: str = "mp3"
+        format_ext: str = "mp3",
+        download_playlist: bool = False
     ) -> bool:
         """
         Download audio only in specified quality.
@@ -271,6 +292,7 @@ class VideoDownloader:
             output_path: Directory to save the file
             quality: Audio quality (e.g., "320kbps", "192kbps")
             format_ext: Output format (mp3, m4a, wav, etc.)
+            download_playlist: If True, download the entire playlist if URL refers to one
             
         Returns:
             True if successful, False otherwise
@@ -290,6 +312,7 @@ class VideoDownloader:
             }],
             'quiet': True,
             'no_warnings': True,
+            'noplaylist': not download_playlist,
         }
         
         try:

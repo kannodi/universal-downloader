@@ -20,18 +20,18 @@ from src.dependency_checker import check_all_dependencies, update_yt_dlp, update
 
 # Theme colors
 COLORS = {
-    "bg_dark": "#0f0f0f",
-    "bg_secondary": "#1a1a1a",
-    "bg_tertiary": "#252525",
-    "accent": "#6366f1",
-    "accent_hover": "#818cf8",
-    "text_primary": "#ffffff",
-    "text_secondary": "#a0a0a0",
-    "success": "#22c55e",
-    "error": "#ef4444",
+    "bg_dark": "#0a0a0c",
+    "bg_secondary": "#16161a",
+    "bg_tertiary": "#23232e",
+    "accent": "#7c3aed",
+    "accent_hover": "#8b5cf6",
+    "text_primary": "#f8fafc",
+    "text_secondary": "#94a3b8",
+    "success": "#10b981",
+    "error": "#f43f5e",
     "warning": "#f59e0b",
     "spotify_green": "#1db954",
-    "youtube_red": "#ff0000"
+    "youtube_red": "#ef4444"
 }
 
 
@@ -184,6 +184,7 @@ class UniversalDownloader(ctk.CTk):
         self._is_downloading = False
         self._playlist_info = None  # Stores playlist detection info
         self._download_url = None   # URL to actually download
+        self._last_analyzed_url = None # Avoid redundant analysis
         
         # Create UI
         self._create_widgets()
@@ -259,6 +260,12 @@ class UniversalDownloader(ctk.CTk):
         )
         self.url_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
         
+        # Auto-analyze on paste
+        self.url_entry.bind("<Control-v>", lambda e: self.after(100, self._analyze_url))
+        self.url_entry.bind("<<Paste>>", lambda e: self.after(100, self._analyze_url))
+        # Also on Return key
+        self.url_entry.bind("<Return>", lambda e: self._analyze_url())
+        
         self.analyze_btn = ctk.CTkButton(
             url_row,
             text="🔍 Analizar",
@@ -274,10 +281,10 @@ class UniversalDownloader(ctk.CTk):
         self.url_type_label = ctk.CTkLabel(
             url_inner,
             text="",
-            font=ctk.CTkFont(size=11),
+            font=ctk.CTkFont(size=12, weight="bold"),
             text_color=COLORS["text_secondary"]
         )
-        self.url_type_label.pack(anchor="w", pady=(4, 0))
+        self.url_type_label.pack(anchor="w", pady=(2, 0))
         
         # ===== PLAYLIST OPTIONS (hidden by default) =====
         self.playlist_frame = ctk.CTkFrame(main_frame, fg_color=COLORS["bg_secondary"], corner_radius=8)
@@ -288,8 +295,8 @@ class UniversalDownloader(ctk.CTk):
         self.playlist_info_label = ctk.CTkLabel(
             playlist_inner,
             text="",
-            font=ctk.CTkFont(size=11),
-            text_color=COLORS["text_secondary"]
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=COLORS["accent"]
         )
         self.playlist_info_label.pack(anchor="w")
         
@@ -397,6 +404,26 @@ class UniversalDownloader(ctk.CTk):
         )
         self.format_combo.pack(side="left")
         self.format_combo.set("mp4")
+        
+        # Discord compatibility row
+        discord_row = ctk.CTkFrame(format_frame, fg_color="transparent")
+        discord_row.pack(fill="x", padx=10, pady=(0, 8))
+        
+        self.discord_compat_var = ctk.BooleanVar(value=False)
+        self.discord_compat_check = ctk.CTkCheckBox(
+            discord_row, text="🎮 Discord Compatible (re-codifica a H.264)",
+            variable=self.discord_compat_var,
+            font=ctk.CTkFont(size=11), fg_color=COLORS["accent"],
+            checkbox_height=16, checkbox_width=16
+        )
+        self.discord_compat_check.pack(side="left")
+        
+        discord_info = ctk.CTkLabel(
+            discord_row, text="(TikTok se re-codifica automáticamente)",
+            font=ctk.CTkFont(size=10),
+            text_color=COLORS["text_secondary"]
+        )
+        discord_info.pack(side="left", padx=(10, 0))
         
         # ===== FORMATS DISPLAY (compact) =====
         self.formats_frame = ctk.CTkFrame(main_frame, fg_color=COLORS["bg_secondary"], corner_radius=8)
@@ -529,7 +556,11 @@ class UniversalDownloader(ctk.CTk):
         if not url:
             self._update_status("⚠️ Por favor ingresa una URL", "warning")
             return
-        
+            
+        if url == self._last_analyzed_url:
+            return
+            
+        self._last_analyzed_url = url
         self.analyze_btn.configure(state="disabled", text="Analizando...")
         self._update_status("🔍 Analizando URL...", "info")
         
@@ -580,11 +611,7 @@ class UniversalDownloader(ctk.CTk):
                             if single_url:
                                 self._download_url = single_url
                             
-                            # Use playlist info for display (fast, no extra extraction)
-                            self.after(0, lambda: self._update_video_ui_simple(
-                                playlist_info.get('title', 'Playlist'),
-                                f"Playlist con {playlist_info.get('count', 0)} videos"
-                            ))
+                            # We only show the playlist options frame, which will update labels
                         else:
                             # Single video - use info from fast detection
                             title = playlist_info.get('title', 'Video')
@@ -609,7 +636,13 @@ class UniversalDownloader(ctk.CTk):
         title = playlist_info.get('title', 'Playlist')
         
         self.playlist_info_label.configure(
-            text=f"📚 {title}\n🎬 {count} videos en esta playlist"
+            text=f"📚 {title} ({count} videos)"
+        )
+        
+        # Update content title to guide the user
+        self.content_title_label.configure(
+            text="Selecciona si deseas descargar solo el video actual o la playlist completa:",
+            text_color=COLORS["text_primary"]
         )
         
         # Show the playlist frame after URL section
@@ -656,6 +689,9 @@ class UniversalDownloader(ctk.CTk):
             text=f"🎬 {title}\n👤 {info}{duration_str}",
             text_color=COLORS["text_primary"]
         )
+        
+        # Reset url_type_label to avoid double info if needed
+        # But here we keep it as it's the site indicator
         
         # Show default format options
         self.available_formats_label.configure(
@@ -774,13 +810,23 @@ class UniversalDownloader(ctk.CTk):
                         self.after(0, lambda: self._update_status(f"❌ {msg}", "error"))
                 else:
                     # Video/Audio download
+                    # Check if Discord compatibility is enabled
+                    force_reencode = self.discord_compat_var.get()
+                    
+                    # Determine if we should download as playlist
+                    download_as_playlist = False
+                    if self._playlist_info and self._playlist_info.get('is_playlist'):
+                        download_as_playlist = (self.playlist_choice.get() == "playlist")
+                    
                     if download_type == "video":
                         success = self.video_downloader.download_video(
-                            actual_url, output_path, quality, format_type
+                            actual_url, output_path, quality, format_type, 
+                            force_reencode, download_as_playlist
                         )
                     else:
                         success = self.video_downloader.download_audio(
-                            actual_url, output_path, quality, format_type
+                            actual_url, output_path, quality, format_type,
+                            download_as_playlist
                         )
                     
                     if not success:
