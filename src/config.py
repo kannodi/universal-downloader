@@ -17,10 +17,7 @@ DEFAULTS = {
     "default_audio_quality": "320kbps",
     "remember_location": True,
     "theme": "dark",
-    "check_updates_on_start": True,
-    # Spotify API credentials (for automatic track name extraction)
-    "spotify_client_id": "",
-    "spotify_client_secret": ""
+    "check_updates_on_start": True
 }
 
 class Config:
@@ -70,24 +67,6 @@ class Config:
         """Set the download path if 'remember location' is enabled."""
         if self.get("remember_location", True):
             self.set("last_download_path", path)
-    
-    def get_spotify_credentials(self) -> tuple:
-        """Get Spotify API credentials."""
-        return (
-            self.get("spotify_client_id", ""),
-            self.get("spotify_client_secret", "")
-        )
-    
-    def set_spotify_credentials(self, client_id: str, client_secret: str) -> None:
-        """Set Spotify API credentials."""
-        self._config["spotify_client_id"] = client_id
-        self._config["spotify_client_secret"] = client_secret
-        self._save()
-    
-    def has_spotify_credentials(self) -> bool:
-        """Check if Spotify credentials are configured."""
-        client_id, client_secret = self.get_spotify_credentials()
-        return bool(client_id and client_secret)
     
     def reset(self) -> None:
         """Reset to default configuration."""

@@ -8,9 +8,6 @@ from tkinter import filedialog, messagebox
 import threading
 import os
 from typing import Optional
-from PIL import Image
-import urllib.request
-import io
 
 from src.config import config
 from src.video_downloader import VideoDownloader, detect_url_type
@@ -228,16 +225,6 @@ class UniversalDownloader(ctk.CTk):
         )
         subtitle_label.pack(side="left", padx=(10, 0), pady=(4, 0))
         
-        # Settings button
-        settings_btn = ctk.CTkButton(
-            header_frame,
-            text="⚙️",
-            width=32, height=32,
-            fg_color="transparent",
-            hover_color=COLORS["bg_secondary"],
-            command=self._show_settings_dialog
-        )
-        settings_btn.pack(side="right")
         
         # ===== URL INPUT (compact) =====
         url_frame = ctk.CTkFrame(main_frame, fg_color=COLORS["bg_secondary"], corner_radius=8)
@@ -837,127 +824,6 @@ class UniversalDownloader(ctk.CTk):
         
         threading.Thread(target=download, daemon=True).start()
     
-    def _show_settings_dialog(self):
-        """Show settings dialog for Spotify credentials."""
-        dialog = ctk.CTkToplevel(self)
-        dialog.title("Configuracion - Spotify")
-        dialog.geometry("450x380")
-        dialog.resizable(False, False)
-        dialog.configure(fg_color=COLORS["bg_dark"])
-        
-        # Wait for window to be ready before adding content
-        dialog.after(200, lambda: self._populate_settings_dialog(dialog))
-    
-    def _populate_settings_dialog(self, dialog):
-        """Populate the settings dialog with content."""
-        try:
-            # Center dialog
-            x = self.winfo_x() + (self.winfo_width() - 450) // 2
-            y = self.winfo_y() + (self.winfo_height() - 380) // 2
-            dialog.geometry(f"450x380+{x}+{y}")
-            dialog.lift()
-            dialog.focus_force()
-            
-            # Main container frame
-            container = ctk.CTkFrame(dialog, fg_color="transparent")
-            container.pack(fill="both", expand=True, padx=20, pady=20)
-            
-            # Title
-            ctk.CTkLabel(
-                container,
-                text="Configuracion de Spotify",
-                font=ctk.CTkFont(size=16, weight="bold"),
-                text_color=COLORS["text_primary"]
-            ).pack(pady=(0, 10))
-            
-            # Instructions
-            ctk.CTkLabel(
-                container,
-                text="Para descargar automaticamente desde Spotify,\nnecesitas credenciales de la API de Spotify.",
-                font=ctk.CTkFont(size=11),
-                text_color=COLORS["text_secondary"],
-                justify="center"
-            ).pack(pady=(0, 10))
-            
-            # Link to dashboard
-            import webbrowser
-            link_btn = ctk.CTkButton(
-                container,
-                text="Abrir Spotify Developer Dashboard",
-                fg_color=COLORS["bg_secondary"],
-                text_color=COLORS["spotify_green"],
-                hover_color=COLORS["bg_tertiary"],
-                height=30,
-                command=lambda: webbrowser.open('https://developer.spotify.com/dashboard')
-            )
-            link_btn.pack(pady=(0, 15))
-            
-            # Client ID
-            ctk.CTkLabel(
-                container, text="Client ID:", font=ctk.CTkFont(size=11),
-                text_color=COLORS["text_primary"]
-            ).pack(anchor="w")
-            
-            client_id_entry = ctk.CTkEntry(
-                container, height=32,
-                fg_color=COLORS["bg_tertiary"],
-                border_color=COLORS["accent"]
-            )
-            client_id_entry.pack(fill="x", pady=(2, 10))
-            
-            # Client Secret
-            ctk.CTkLabel(
-                container, text="Client Secret:", font=ctk.CTkFont(size=11),
-                text_color=COLORS["text_primary"]
-            ).pack(anchor="w")
-            
-            client_secret_entry = ctk.CTkEntry(
-                container, height=32,
-                fg_color=COLORS["bg_tertiary"],
-                border_color=COLORS["accent"],
-                show="*"
-            )
-            client_secret_entry.pack(fill="x", pady=(2, 15))
-            
-            # Load existing credentials
-            client_id, client_secret = self.config.get_spotify_credentials()
-            if client_id:
-                client_id_entry.insert(0, client_id)
-            if client_secret:
-                client_secret_entry.insert(0, client_secret)
-            
-            # Status label
-            status_label = ctk.CTkLabel(
-                container, text="", font=ctk.CTkFont(size=11),
-                text_color=COLORS["success"]
-            )
-            status_label.pack()
-            
-            def save_credentials():
-                cid = client_id_entry.get().strip()
-                secret = client_secret_entry.get().strip()
-                
-                if cid and secret:
-                    self.config.set_spotify_credentials(cid, secret)
-                    self.spotify_downloader.reinit_spotify()
-                    status_label.configure(text="Credenciales guardadas!", text_color=COLORS["success"])
-                    dialog.after(1500, dialog.destroy)
-                else:
-                    status_label.configure(text="Ambos campos son requeridos", text_color=COLORS["warning"])
-            
-            # Save button
-            ctk.CTkButton(
-                container,
-                text="Guardar",
-                fg_color=COLORS["spotify_green"],
-                hover_color="#1ed760",
-                text_color="black",
-                width=150, height=35,
-                command=save_credentials
-            ).pack(pady=15)
-            
-        except Exception as e:
-            print(f"Error populating dialog: {e}")
 
 
 def main():

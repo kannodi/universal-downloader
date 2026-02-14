@@ -9,9 +9,21 @@ import yt_dlp
 from typing import List, Dict, Optional, Callable, Any
 from pathlib import Path
 
+# Pre-compiled regex patterns for better performance
+YOUTUBE_VIDEO_ID_REGEX = re.compile(r'[?&]v=([a-zA-Z0-9_-]{11})')
+QUALITY_HEIGHT_REGEX = re.compile(r'(\d+)p?')
+BITRATE_REGEX = re.compile(r'(\d+)')
+
 
 class VideoDownloader:
     """Handles video and audio downloads using yt-dlp."""
+    
+    # Default yt-dlp options
+    DEFAULT_YDL_OPTS = {
+        'quiet': True,
+        'no_warnings': True,
+        'noplaylist': False,
+    }
     
     def __init__(self, progress_callback: Optional[Callable[[Dict], None]] = None):
         """
@@ -66,12 +78,8 @@ class VideoDownloader:
         Returns:
             Dictionary with video information or None if error
         """
-        ydl_opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'extract_flat': extract_flat,
-            'noplaylist': False,  # Allow playlist detection
-        }
+        ydl_opts = self.DEFAULT_YDL_OPTS.copy()
+        ydl_opts['extract_flat'] = extract_flat
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -92,12 +100,8 @@ class VideoDownloader:
         Returns:
             Dictionary with playlist info or None if not a playlist
         """
-        ydl_opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'extract_flat': 'in_playlist',  # Only get basic info
-            'noplaylist': False,
-        }
+        ydl_opts = self.DEFAULT_YDL_OPTS.copy()
+        ydl_opts['extract_flat'] = 'in_playlist'
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -137,9 +141,7 @@ class VideoDownloader:
         Returns:
             Single video URL or None
         """
-        # Extract video ID from YouTube URLs
-        import re
-        video_match = re.search(r'[?&]v=([a-zA-Z0-9_-]{11})', playlist_url)
+        video_match = YOUTUBE_VIDEO_ID_REGEX.search(playlist_url)
         if video_match:
             return f"https://www.youtube.com/watch?v={video_match.group(1)}"
         return None
@@ -170,7 +172,8 @@ class VideoDownloader:
             ext = fmt.get('ext', '')
             
             # Video formats
-            if fmt.get('vcodec') and fmt.get('vcodec') != 'none':
+            vcodec = fmt.get('vcodec')
+            if vcodec and vcodec != 'none':
                 height = fmt.get('height', 0)
                 if height and height not in seen_video:
                     seen_video.add(height)
@@ -180,13 +183,14 @@ class VideoDownloader:
                         'height': height,
                         'ext': ext,
                         'fps': fmt.get('fps', 0),
-                        'vcodec': fmt.get('vcodec', ''),
+                        'vcodec': vcodec,
                         'filesize': fmt.get('filesize') or fmt.get('filesize_approx', 0),
                         'has_audio': fmt.get('acodec') and fmt.get('acodec') != 'none'
                     })
             
             # Audio-only formats
-            elif fmt.get('acodec') and fmt.get('acodec') != 'none':
+            acodec = fmt.get('acodec')
+            if acodec and acodec != 'none':
                 abr = fmt.get('abr', 0)
                 if abr and abr not in seen_audio:
                     seen_audio.add(abr)
@@ -195,7 +199,7 @@ class VideoDownloader:
                         'quality': f"{int(abr)}kbps",
                         'abr': abr,
                         'ext': ext,
-                        'acodec': fmt.get('acodec', ''),
+                        'acodec': acodec,
                         'filesize': fmt.get('filesize') or fmt.get('filesize_approx', 0)
                     })
         
@@ -223,46 +227,31 @@ class VideoDownloader:
     ) -> bool:
         """
         Download video in specified quality.
-        
-        Args:
-            url: Video URL
-            output_path: Directory to save the file
-            quality: Video quality (e.g., "1080p", "720p")
-            format_ext: Output format (e.g., "mp4", "mkv")
-            force_reencode: Force re-encoding to H.264/AAC for Discord compatibility
-            download_playlist: If True, download the entire playlist if URL refers to one
-            
-        Returns:
-            True if successful, False otherwise
         """
         # Parse quality to get height
-        height_match = re.match(r'(\d+)p?', quality)
+        height_match = QUALITY_HEIGHT_REGEX.match(quality)
         height = int(height_match.group(1)) if height_match else 1080
         
-        # Detect if URL is from TikTok (needs re-encoding for Discord)
         is_tiktok = 'tiktok.com' in url.lower() or 'vm.tiktok' in url.lower()
         needs_reencode = force_reencode or is_tiktok
         
-        # Format string for best video + audio up to specified height
         format_string = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]/best'
         
-        ydl_opts = {
+        ydl_opts = self.DEFAULT_YDL_OPTS.copy()
+        ydl_opts.update({
             'format': format_string,
             'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),
             'progress_hooks': [self._progress_hook],
             'merge_output_format': format_ext,
-            'quiet': True,
-            'no_warnings': True,
             'noplaylist': not download_playlist,
-        }
+        })
         
-        # Add re-encoding postprocessor for TikTok videos (Discord compatibility)
+        # Add re-encoding postprocessor for compatibility
         if needs_reencode and format_ext == 'mp4':
             ydl_opts['postprocessors'] = [{
                 'key': 'FFmpegVideoConvertor',
                 'preferedformat': 'mp4',
             }]
-            # Force H.264 video codec and AAC audio for maximum compatibility
             ydl_opts['postprocessor_args'] = {
                 'FFmpegVideoConvertor': ['-c:v', 'libx264', '-c:a', 'aac', '-movflags', '+faststart']
             }
@@ -286,22 +275,12 @@ class VideoDownloader:
     ) -> bool:
         """
         Download audio only in specified quality.
-        
-        Args:
-            url: Video/Audio URL
-            output_path: Directory to save the file
-            quality: Audio quality (e.g., "320kbps", "192kbps")
-            format_ext: Output format (mp3, m4a, wav, etc.)
-            download_playlist: If True, download the entire playlist if URL refers to one
-            
-        Returns:
-            True if successful, False otherwise
         """
-        # Parse quality to get bitrate
-        quality_match = re.match(r'(\d+)', quality)
+        quality_match = BITRATE_REGEX.match(quality)
         bitrate = quality_match.group(1) if quality_match else "320"
         
-        ydl_opts = {
+        ydl_opts = self.DEFAULT_YDL_OPTS.copy()
+        ydl_opts.update({
             'format': 'bestaudio/best',
             'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),
             'progress_hooks': [self._progress_hook],
@@ -310,10 +289,8 @@ class VideoDownloader:
                 'preferredcodec': format_ext,
                 'preferredquality': bitrate,
             }],
-            'quiet': True,
-            'no_warnings': True,
             'noplaylist': not download_playlist,
-        }
+        })
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -328,12 +305,6 @@ class VideoDownloader:
 def detect_url_type(url: str) -> str:
     """
     Detect the type of URL.
-    
-    Args:
-        url: The URL to analyze
-        
-    Returns:
-        'spotify', 'youtube', 'other', or 'invalid'
     """
     url_lower = url.lower()
     
@@ -342,6 +313,6 @@ def detect_url_type(url: str) -> str:
     elif 'youtube.com' in url_lower or 'youtu.be' in url_lower:
         return 'youtube'
     elif url.startswith('http://') or url.startswith('https://'):
-        return 'other'  # Other supported sites
+        return 'other'
     else:
         return 'invalid'
