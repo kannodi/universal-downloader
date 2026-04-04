@@ -17,7 +17,8 @@ DEFAULTS = {
     "default_audio_quality": "320kbps",
     "remember_location": True,
     "theme": "dark",
-    "check_updates_on_start": True
+    "check_updates_on_start": True,
+    "always_on_top": False
 }
 
 class Config:

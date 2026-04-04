@@ -48,3 +48,6 @@ Thumbs.db
 # Test files
 test_*.py
 embed_page.html
+
+# App caches
+.audio_cache/

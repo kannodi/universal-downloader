@@ -23,6 +23,9 @@ class VideoDownloader:
         'quiet': True,
         'no_warnings': True,
         'noplaylist': False,
+        'nocheckcertificate': True,
+        'socket_timeout': 5,
+        'ignoreerrors': True,
     }
     
     def __init__(self, progress_callback: Optional[Callable[[Dict], None]] = None):
@@ -216,24 +219,12 @@ class VideoDownloader:
             'uploader': info.get('uploader', 'Unknown')
         }
     
-    def download_video(
-        self,
-        url: str,
-        output_path: str,
-        quality: str = "1080p",
-        format_ext: str = "mp4",
-        force_reencode: bool = False,
-        download_playlist: bool = False
-    ) -> bool:
-        """
-        Download video in specified quality.
-        """
+    def download_video(self, url: str, output_path: str, quality: str = "1080p", 
+                     format_type: str = "mp4", is_playlist: bool = False) -> bool:
+        """Download a single video or full playlist."""
         # Parse quality to get height
         height_match = QUALITY_HEIGHT_REGEX.match(quality)
         height = int(height_match.group(1)) if height_match else 1080
-        
-        is_tiktok = 'tiktok.com' in url.lower() or 'vm.tiktok' in url.lower()
-        needs_reencode = force_reencode or is_tiktok
         
         format_string = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]/best'
         
@@ -242,19 +233,10 @@ class VideoDownloader:
             'format': format_string,
             'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),
             'progress_hooks': [self._progress_hook],
-            'merge_output_format': format_ext,
-            'noplaylist': not download_playlist,
+            'merge_output_format': format_type,
+            'noplaylist': not is_playlist,
+            'match_filter': self._duration_filter,
         })
-        
-        # Add re-encoding postprocessor for compatibility
-        if needs_reencode and format_ext == 'mp4':
-            ydl_opts['postprocessors'] = [{
-                'key': 'FFmpegVideoConvertor',
-                'preferedformat': 'mp4',
-            }]
-            ydl_opts['postprocessor_args'] = {
-                'FFmpegVideoConvertor': ['-c:v', 'libx264', '-c:a', 'aac', '-movflags', '+faststart']
-            }
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -290,6 +272,7 @@ class VideoDownloader:
                 'preferredquality': bitrate,
             }],
             'noplaylist': not download_playlist,
+            'match_filter': self._duration_filter,
         })
         
         try:
@@ -301,6 +284,34 @@ class VideoDownloader:
                 self.progress_callback({'status': 'error', 'error': str(e)})
             return False
 
+    def search_videos(self, query: str, count: int = 5) -> List[Dict]:
+        """Search for videos based on a query."""
+        ydl_opts = self.DEFAULT_YDL_OPTS.copy()
+        ydl_opts['extract_flat'] = True
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"ytsearch{count}:{query}", download=False)
+                if 'entries' in info:
+                    return [{
+                        'id': e.get('id'),
+                        'url': f"https://www.youtube.com/watch?v={e.get('id')}",
+                        'title': e.get('title'),
+                        'uploader': e.get('uploader'),
+                        'duration': e.get('duration', 0),
+                        'thumbnail': e.get('thumbnail')
+                    } for e in info['entries']]
+                return []
+        except Exception as e:
+            print(f"Error searching videos: {e}")
+            return []
+
+    def _duration_filter(self, info_dict, *, incomplete):
+        """Skip videos longer than 30 minutes (1800 seconds)."""
+        duration = info_dict.get('duration')
+        if duration and duration > 1800:
+            return 'El video es demasiado largo (máximo 30 minutos)'
+        return None
+
 
 def detect_url_type(url: str) -> str:
     """
@@ -308,11 +319,18 @@ def detect_url_type(url: str) -> str:
     """
     url_lower = url.lower()
     
-    if 'spotify.com' in url_lower or 'open.spotify' in url_lower:
+    if any(p in url_lower for p in ['spotify.com', 'open.spotify']):
         return 'spotify'
-    elif 'youtube.com' in url_lower or 'youtu.be' in url_lower:
+    
+    # Improved YouTube detection
+    youtube_patterns = ['youtube.com', 'youtu.be', 'youtube-nocookie.com']
+    if any(p in url_lower for p in youtube_patterns):
         return 'youtube'
-    elif url.startswith('http://') or url.startswith('https://'):
+        
+    if url.startswith(('http://', 'https://')):
         return 'other'
-    else:
-        return 'invalid'
+    elif url.strip():
+        # Non-empty string that is not a URL -> Search
+        return 'search'
+    
+    return 'invalid'
