@@ -1,118 +1,72 @@
 # 🎵 Universal Downloader
 
-Aplicación de escritorio moderna para descargar videos y música de **YouTube**, **Spotify** y más de **1000 sitios** compatibles con yt-dlp.
+Aplicación de escritorio moderna y fácil de usar para descargar videos y música de **YouTube**, **Spotify** y más de **1000 sitios** de internet. 
 
-![Theme](https://img.shields.io/badge/Theme-Dark-1a1a1a)
-![Python](https://img.shields.io/badge/Python-3.10+-blue)
-![License](https://img.shields.io/badge/License-MIT-green)
-
-## ✨ Características
-
-- 🎬 **Descarga videos** en múltiples calidades (1080p, 720p, 480p, etc.)
-- 🎵 **Descarga audio** en MP3, M4A, FLAC, WAV y más
-- 🎧 **Spotify** - Detecta automáticamente la canción y descarga vía YouTube
-- 🌐 **+1000 sitios** compatibles vía yt-dlp
-- 📊 **Vista previa de calidades** disponibles antes de descargar
-- 💾 **Recuerda tu última carpeta** de descarga
-- 🔄 **Verificación automática** de dependencias al iniciar
-- 🌙 **Interfaz oscura** moderna con CustomTkinter
-
-## 📋 Requisitos
-
-- Python 3.10 o superior
-- FFmpeg instalado y en PATH
-
-### Instalar FFmpeg
-
-**Windows (con Chocolatey):**
-```bash
-choco install ffmpeg
-```
-
-**Windows (manual):**
-1. Descarga desde [ffmpeg.org](https://ffmpeg.org/download.html)
-2. Extrae y añade la carpeta `bin` a tu PATH
-
-## 🚀 Instalación
-
-1. **Clona o descarga** este repositorio
-
-2. **Crea un entorno virtual** (recomendado):
-```bash
-python -m venv venv
-venv\Scripts\activate  # Windows
-```
-
-3. **Instala las dependencias**:
-```bash
-pip install -r requirements.txt
-```
-
-## 🎮 Uso
-
-1. **Ejecuta la aplicación**:
-```bash
-python main.py
-```
-
-2. **Pega una URL** de YouTube, Spotify u otro sitio compatible
-
-3. **Haz clic en "Analizar"** para ver las calidades disponibles
-
-4. **Selecciona** el tipo (video/audio), calidad y formato
-
-5. **Elige la carpeta** de destino
-
-6. **Haz clic en "Descargar"**
-
-## 📁 Estructura del Proyecto
-
-```
-downloader/
-├── main.py                 # Punto de entrada
-├── requirements.txt        # Dependencias Python
-├── README.md              # Este archivo
-└── src/
-    ├── __init__.py
-    ├── app.py             # Aplicación principal (GUI)
-    ├── config.py          # Gestión de configuración
-    ├── dependency_checker.py  # Verificación de dependencias
-    ├── video_downloader.py    # Descargador yt-dlp
-    └── spotify_downloader.py  # Descargador Spotify
-```
-
-## ⚙️ Configuración
-
-La aplicación guarda automáticamente:
-- Última carpeta de descarga seleccionada
-- Preferencias de formato por defecto
-
-Los archivos de configuración se guardan en:
-```
-~/.universal_downloader/config.json
-```
-
-## 🔧 Solución de Problemas
-
-### FFmpeg no encontrado
-Asegúrate de que FFmpeg está instalado y en tu PATH:
-```bash
-ffmpeg -version
-```
-
-### Error al descargar de Spotify
-- La app detecta automáticamente el nombre de la canción desde la URL de Spotify
-- Luego busca y descarga el audio desde YouTube usando yt-dlp
-- Si no detecta el nombre, puedes ingresarlo manualmente
-- Opcionalmente, puedes configurar credenciales de Spotify API en ⚙️ Configuración
-
-### Actualizar herramientas
-La aplicación te permite actualizar yt-dlp desde el diálogo de dependencias al inicio.
-
-## 📜 Licencia
-
-Este proyecto es para uso educativo y personal. Asegúrate de cumplir con los términos de servicio de cada plataforma y las leyes de copyright de tu país.
+Diseñada para ser sencilla: pegás el enlace, elegís el formato y descargás.
 
 ---
 
-Hecho con ❤️ usando Python, CustomTkinter y yt-dlp
+## 🚀 Guía de Inicio Rápido (Para todo público)
+
+Seguí estos pasos sencillos para instalar y hacer funcionar el programa en tu computadora.
+
+### Paso 1: Instalar Python
+El programa está construido sobre Python. Si no lo tenés instalado:
+1. Entrá a [python.org](https://www.python.org/downloads/) y descargá la última versión para Windows.
+2. **IMPORTANTE:** Al abrir el instalador, asegurate de marcar la casilla que dice **"Add Python to PATH"** (o "Agregar Python al PATH") abajo del todo antes de darle a instalar. Si no marcás esto, el programa no va a funcionar.
+
+### Paso 2: Instalar FFmpeg (Necesario para convertir audios y videos)
+FFmpeg es un motor interno que usa el programa para procesar y unir los archivos de audio y video.
+* **En Windows (Sencillo):**
+  1. Abrí el menú inicio de tu computadora, escribí `Terminal` o `PowerShell` y abrilo.
+  2. Copiá y pegá el siguiente comando y apretá Enter:
+     ```powershell
+     winget install ffmpeg
+     ```
+  3. Cerrá la ventana cuando termine.
+
+### Paso 3: Descargar y Preparar el Programa
+1. Descargá este proyecto a tu computadora (haciendo clic en el botón verde **Code** -> **Download ZIP** arriba a la derecha y descomprimilo en una carpeta).
+2. Abrí la carpeta del programa.
+3. Buscá el archivo llamado **`start.bat`** y hacé doble clic en él. 
+   * *La primera vez que lo abras, instalará automáticamente todas las herramientas necesarias de forma segura y luego abrirá la aplicación.*
+
+---
+
+## 🎮 Cómo Usar la Aplicación
+
+1. **Pegá la URL:** Copiá el enlace de la canción de Spotify o del video de YouTube y pegalo en la barra de texto superior.
+2. **Analizá:** Presioná el botón **Analizar**. El programa cambiará de color según la plataforma y buscará el archivo automáticamente.
+3. **Elegí tu formato y calidad:** 
+   * Seleccioná **Video** (si querés guardarlo con imagen en calidad 1080p, 720p, etc.).
+   * Seleccioná **Audio** (si solo querés la música en formato MP3 o similar).
+4. **Elegí dónde guardarlo:** Hacé clic en **Examinar** para elegir en qué carpeta de tu computadora querés que se guarde la descarga.
+5. **Descargá:** Presioná **Descargar**. Verás el progreso en la barra inferior.
+
+---
+
+## ⚙️ Características Técnicas (Para Desarrolladores)
+
+El proyecto cuenta con una arquitectura desacoplada basada en componentes independientes de GUI y un controlador de descargas asíncrono para evitar el bloqueo del hilo de interfaz gráfica de CustomTkinter.
+
+```
+downloader/
+├── main.py                 # Punto de entrada de la aplicación
+├── requirements.txt        # Librerías de Python requeridas
+├── start.bat               # Script automatizado de instalación y arranque rápido
+└── src/
+    ├── app.py             # Ventana principal (Ensamblador de UI)
+    ├── config.py          # Manejo de opciones guardadas del usuario (.json)
+    ├── dependency_checker.py # Verificador del entorno de ejecución (ffmpeg, yt-dlp)
+    ├── video_downloader.py    # Lógica de descarga nativa de videos
+    ├── spotify_downloader.py  # Lógica de conversión de enlaces Spotify a YouTube
+    └── gui/               # Componentes aislados de la interfaz
+        ├── colors.py          # Paleta visual del proyecto
+        ├── controller.py      # Controlador de hilos asíncronos y reproductor
+        └── components/        # Sub-paneles interactivos de la aplicación
+```
+
+---
+
+## 📜 Licencia
+Este proyecto es para uso educativo y personal. Asegurate de cumplir con las políticas y leyes de copyright de tu país.
