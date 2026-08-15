@@ -115,7 +115,11 @@ class DownloadController:
                             title = playlist_info.get('title', 'Video')
                             uploader = playlist_info.get('uploader', '')
                             duration = playlist_info.get('duration', 0)
-                            self.ui.after(0, lambda: self.ui._update_video_ui_simple(title, uploader, duration))
+                            # Get full info metadata for thumbnail if single video
+                            video_meta = self.video_downloader.get_video_info(url, extract_flat=True)
+                            thumb_url = video_meta.get('thumbnail') if video_meta else None
+                            
+                            self.ui.after(0, lambda t=title, u=uploader, d=duration, tb=thumb_url: self.ui._update_video_ui_simple(t, u, d, thumbnail_url=tb))
                     else:
                          self.ui.after(0, lambda: self.ui._update_video_ui_simple("Contenido detectado", "Listo para descargar"))
 
@@ -372,7 +376,8 @@ class DownloadController:
             result['title'], 
             result.get('uploader', 'Unknown'), 
             result.get('duration', 0),
-            show_player=False
+            show_player=False,
+            thumbnail_url=result.get('thumbnail')
         )
 
     def download_specific(self, result):

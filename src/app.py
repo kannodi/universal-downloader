@@ -291,10 +291,23 @@ class UniversalDownloader(ctk.CTk):
         info_inner = ctk.CTkFrame(self.info_frame, fg_color="transparent")
         info_inner.pack(fill="x", padx=10, pady=8)
         
-        self.content_title_label = ctk.CTkLabel(
-            info_inner, text="", font=ctk.CTkFont(size=12), text_color=COLORS["text_secondary"], wraplength=420
+        # Horizontal layout for image and text
+        self.info_layout = ctk.CTkFrame(info_inner, fg_color="transparent")
+        self.info_layout.pack(fill="x", anchor="w")
+        
+        self.thumbnail_label = ctk.CTkLabel(
+            self.info_layout, text="", width=110, height=62, fg_color=COLORS["bg_tertiary"], corner_radius=4
         )
-        self.content_title_label.pack(anchor="w")
+        self.thumbnail_label.pack(side="left", padx=(0, 10))
+        
+        text_column = ctk.CTkFrame(self.info_layout, fg_color="transparent")
+        text_column.pack(side="left", fill="both", expand=True)
+        
+        self.content_title_label = ctk.CTkLabel(
+            text_column, text="", font=ctk.CTkFont(size=12), text_color=COLORS["text_secondary"],
+            wraplength=310, justify="left", anchor="w"
+        )
+        self.content_title_label.pack(fill="x", anchor="w")
         
         self.spotify_search_frame = ctk.CTkFrame(info_inner, fg_color="transparent")
         ctk.CTkLabel(
@@ -361,18 +374,26 @@ class UniversalDownloader(ctk.CTk):
         self.playlist_info_label.configure(text=f"{title} ({count} videos)")
         self.content_title_label.configure(
             text="Selecciona si deseas descargar solo el video actual o la playlist completa:",
-            text_color=COLORS["text_primary"], wraplength=420
+            text_color=COLORS["text_primary"], wraplength=310
         )
         self.playlist_frame.pack(fill="x", pady=(0, 15), after=self.url_frame)
         self.playlist_choice.set("single")
+        # Clear thumbnail for playlist info
+        self.thumbnail_label.configure(image=None, text="")
 
-    def _update_video_ui_simple(self, title: str, info: str, duration: int = 0, show_player: bool = True):
+    def _update_video_ui_simple(self, title: str, info: str, duration: int = 0, show_player: bool = True, thumbnail_url: str = None):
         d = int(duration) if duration else 0
         duration_str = f" • {d // 60}:{d % 60:02d}" if d else ""
         if self.format_frame.download_type.get() == "video":
             self.info_frame.pack(fill="x", pady=(10, 0), after=self.url_frame)
             self.player_frame.pack_forget()
             self.content_title_label.configure(text=f"{title}\n{info}{duration_str}", text_color=COLORS["text_primary"])
+            
+            # Download and set thumbnail
+            if thumbnail_url:
+                self._load_thumbnail_async(thumbnail_url)
+            else:
+                self.thumbnail_label.configure(image=None, text="")
         else:
             self.info_frame.pack_forget()
             self.player_frame.set_audio_title(f"{title} - {info}")
@@ -384,6 +405,32 @@ class UniversalDownloader(ctk.CTk):
         self.available_formats_label.configure(
             text="Video: 1080p, 720p, 480p, 360p\nAudio: 320kbps, 256kbps, 192kbps, 128kbps"
         )
+
+    def _load_thumbnail_async(self, url: str):
+        """Downloads the video thumbnail and displays it on the UI as CTkImage."""
+        def load():
+            try:
+                import requests
+                from PIL import Image, ImageTk
+                import io
+                
+                response = requests.get(url, timeout=5)
+                if response.ok:
+                    image_data = response.content
+                    image = Image.open(io.BytesIO(image_data))
+                    # Scale to 110x62 (16:9 ratio approximately)
+                    image = image.resize((110, 62), Image.Resampling.LANCZOS)
+                    
+                    # Create CTkImage
+                    ctk_image = ctk.CTkImage(light_image=image, dark_image=image, size=(110, 62))
+                    
+                    self.after(0, lambda: self.thumbnail_label.configure(image=ctk_image, text=""))
+            except Exception as e:
+                # Silently fail, just clear label text
+                self.after(0, lambda: self.thumbnail_label.configure(image=None, text=""))
+                
+        import threading
+        threading.Thread(target=load, daemon=True).start()
 
     def _update_spotify_ui(self, formats: dict, track_name: str = None):
         self.format_frame.download_type.set("audio")
@@ -401,6 +448,7 @@ class UniversalDownloader(ctk.CTk):
         self.available_formats_label.configure(
             text="Formatos: MP3, M4A, FLAC, WAV, OGG, OPUS\nSe buscara en YouTube y descargara con yt-dlp"
         )
+        self.thumbnail_label.configure(image=None, text="")
 
     def _on_type_change(self):
         self.controller.stop_preview()
