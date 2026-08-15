@@ -31,6 +31,12 @@ class DownloadController:
         self._playlist_info = None
         self._download_url = None
         self._last_analyzed_url = None
+        self._trim_range = None
+
+    def set_trim_range(self, start: str, end: str):
+        """Sets the selected trim range to apply during final download."""
+        self._trim_range = {"start": start, "end": end}
+        self.ui._update_status(f"Recorte guardado: {start} a {end}", "success")
 
     def open_video_preview(self):
         """Downloads a 10-second preview of the video and launches the custom VideoPreviewDialog."""
@@ -226,9 +232,18 @@ class DownloadController:
                         download_as_playlist = (self.ui.playlist_choice.get() == "playlist")
                     
                     if download_type == "video":
-                        success = self.video_downloader.download_video(actual_url, output_path, quality, format_type, download_as_playlist)
+                        success = self.video_downloader.download_video(
+                            actual_url, output_path, quality, format_type, download_as_playlist,
+                            trim_range=self._trim_range
+                        )
                     else:
-                        success = self.video_downloader.download_audio(actual_url, output_path, quality, format_type, download_as_playlist)
+                        success = self.video_downloader.download_audio(
+                            actual_url, output_path, quality, format_type, download_as_playlist,
+                            trim_range=self._trim_range
+                        )
+                
+                # Reset trim range after download completes or fails
+                self._trim_range = None
                 
                 if not success:
                     self.ui.after(0, lambda: self.ui._update_status("Error en la descarga", "error"))

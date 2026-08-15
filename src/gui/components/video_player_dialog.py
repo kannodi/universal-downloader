@@ -81,19 +81,48 @@ class VideoPreviewDialog(ctk.CTkToplevel):
         self.time_label = ctk.CTkLabel(controls_frame, text="00:00 / 00:00", font=ctk.CTkFont(size=11))
         self.time_label.pack(side="right")
 
-        # Volume Controls Row
+        # Volume and Trimming Controls Row
         volume_frame = ctk.CTkFrame(self, fg_color="transparent")
         volume_frame.pack(fill="x", padx=15, pady=(0, 15))
         
         ctk.CTkLabel(volume_frame, text="🔊 Vol:", font=ctk.CTkFont(size=11)).pack(side="left", padx=(0, 5))
         
         self.volume_slider = ctk.CTkSlider(
-            volume_frame, from_=0, to=1, height=14, width=120,
+            volume_frame, from_=0, to=1, height=14, width=100,
             fg_color="#23232e", progress_color="#7c3aed",
             command=self._set_volume
         )
         self.volume_slider.pack(side="left")
         self.volume_slider.set(0.8)
+        
+        # Trim Controls
+        ctk.CTkLabel(volume_frame, text="⏱ Recortar:", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=(25, 5))
+        
+        self.start_entry = ctk.CTkEntry(
+            volume_frame, placeholder_text="0:00", width=60, height=26, font=ctk.CTkFont(size=11),
+            fg_color="#16161a", border_color="#23232e", border_width=1
+        )
+        self.start_entry.pack(side="left")
+        self.start_entry.insert(0, "0:00")
+        
+        ctk.CTkLabel(volume_frame, text="a", font=ctk.CTkFont(size=11)).pack(side="left", padx=5)
+        
+        tot_sec = int(self.total_frames / self.fps)
+        total_time_str = f"{tot_sec//60}:{tot_sec%60:02d}"
+        
+        self.end_entry = ctk.CTkEntry(
+            volume_frame, placeholder_text=total_time_str, width=60, height=26, font=ctk.CTkFont(size=11),
+            fg_color="#16161a", border_color="#23232e", border_width=1
+        )
+        self.end_entry.pack(side="left")
+        self.end_entry.insert(0, total_time_str)
+        
+        self.confirm_btn = ctk.CTkButton(
+            volume_frame, text="✓ Confirmar", width=80, height=26, font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color="#10b981", hover_color="#059669",
+            command=self._confirm_trim
+        )
+        self.confirm_btn.pack(side="right", padx=(10, 0))
         
     def _update_frame(self):
         if not self.cap.isOpened() or not self.winfo_exists():
@@ -172,6 +201,42 @@ class VideoPreviewDialog(ctk.CTkToplevel):
     def _set_volume(self, value):
         if self.audio_loaded:
             pygame.mixer.music.set_volume(float(value))
+
+    def _confirm_trim(self):
+        start_str = self.start_entry.get().strip()
+        end_str = self.end_entry.get().strip()
+        
+        def parse_time(time_str):
+            try:
+                parts = time_str.split(':')
+                if len(parts) == 2:
+                    return int(parts[0]) * 60 + int(parts[1])
+                elif len(parts) == 3:
+                    return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+                return int(time_str)
+            except:
+                return None
+                
+        start_sec = parse_time(start_str)
+        end_sec = parse_time(end_str)
+        
+        if start_sec is None or end_sec is None:
+            self.confirm_btn.configure(text="Formato inválido", fg_color="#ef4444")
+            self.after(2000, lambda: self.confirm_btn.configure(text="✓ Confirmar", fg_color="#10b981"))
+            return
+            
+        tot_sec = int(self.total_frames / self.fps)
+        if start_sec < 0 or end_sec > tot_sec or start_sec >= end_sec:
+            self.confirm_btn.configure(text="Rango inválido", fg_color="#ef4444")
+            self.after(2000, lambda: self.confirm_btn.configure(text="✓ Confirmar", fg_color="#10b981"))
+            return
+            
+        # Call controller setter
+        if hasattr(self.master, "controller"):
+            self.master.controller.set_trim_range(start_str, end_str)
+            
+        self.confirm_btn.configure(text="✓ Confirmado!", fg_color="#10b981")
+        self.after(1500, self._on_closing)
 
     def _on_closing(self):
         self.playing = False

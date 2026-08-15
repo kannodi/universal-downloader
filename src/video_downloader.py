@@ -220,7 +220,7 @@ class VideoDownloader:
         }
     
     def download_video(self, url: str, output_path: str, quality: str = "1080p", 
-                     format_type: str = "mp4", is_playlist: bool = False) -> bool:
+                     format_type: str = "mp4", is_playlist: bool = False, trim_range: Optional[Dict] = None) -> bool:
         """Download a single video or full playlist."""
         # Parse quality to get height
         height_match = QUALITY_HEIGHT_REGEX.match(quality)
@@ -238,6 +238,26 @@ class VideoDownloader:
             'match_filter': self._duration_filter,
         })
         
+        if trim_range:
+            def parse_time(time_str):
+                try:
+                    parts = time_str.split(':')
+                    if len(parts) == 2:
+                        return int(parts[0]) * 60 + int(parts[1])
+                    elif len(parts) == 3:
+                        return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+                    return int(time_str)
+                except:
+                    return 0
+            start_sec = parse_time(trim_range.get("start", "0:00"))
+            end_sec = parse_time(trim_range.get("end", "0:00"))
+            if end_sec > start_sec:
+                ydl_opts['download_ranges'] = lambda info_dict, self_ydl: [{
+                    'start_time': start_sec,
+                    'end_time': end_sec,
+                    'title': info_dict.get('title', 'video')
+                }]
+        
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
@@ -253,7 +273,8 @@ class VideoDownloader:
         output_path: str,
         quality: str = "320kbps",
         format_ext: str = "mp3",
-        download_playlist: bool = False
+        download_playlist: bool = False,
+        trim_range: Optional[Dict] = None
     ) -> bool:
         """
         Download audio only in specified quality.
@@ -274,6 +295,26 @@ class VideoDownloader:
             'noplaylist': not download_playlist,
             'match_filter': self._duration_filter,
         })
+        
+        if trim_range:
+            def parse_time(time_str):
+                try:
+                    parts = time_str.split(':')
+                    if len(parts) == 2:
+                        return int(parts[0]) * 60 + int(parts[1])
+                    elif len(parts) == 3:
+                        return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+                    return int(time_str)
+                except:
+                    return 0
+            start_sec = parse_time(trim_range.get("start", "0:00"))
+            end_sec = parse_time(trim_range.get("end", "0:00"))
+            if end_sec > start_sec:
+                ydl_opts['download_ranges'] = lambda info_dict, self_ydl: [{
+                    'start_time': start_sec,
+                    'end_time': end_sec,
+                    'title': info_dict.get('title', 'audio')
+                }]
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
