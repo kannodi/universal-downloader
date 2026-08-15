@@ -50,14 +50,12 @@ class DownloadController:
                 temp_video = os.path.join(cache_dir, f"vid_{url_hash}.mp4")
                 
                 if not os.path.exists(temp_video):
-                    # Downloader options to extract only 10s of worst video/audio for fast preview
+                    # Downloader options for worst quality (lightweight) full file
                     ydl_opts = {
                         'format': 'worstvideo[ext=mp4]+worstaudio/worst[ext=mp4]/worst',
                         'outtmpl': temp_video.replace('.mp4', '.%(ext)s'),
                         'quiet': True,
                         'no_warnings': True,
-                        'external_downloader': 'ffmpeg',
-                        'external_downloader_args': {'ffmpeg': ['-t', '10']},  # Only 10 seconds
                     }
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         ydl.download([url])

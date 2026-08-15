@@ -393,21 +393,22 @@ class UniversalDownloader(ctk.CTk):
     def _update_video_ui_simple(self, title: str, info: str, duration: int = 0, show_player: bool = True, thumbnail_url: str = None):
         d = int(duration) if duration else 0
         duration_str = f" • {d // 60}:{d % 60:02d}" if d else ""
-        if self.format_frame.download_type.get() == "video":
-            self.info_frame.pack(fill="x", pady=(10, 0), after=self.url_frame)
-            self.player_frame.pack_forget()
-            self.content_title_label.configure(text=f"{title}\n{info}{duration_str}", text_color=COLORS["text_primary"])
-            
-            # Download and set thumbnail
-            if thumbnail_url:
-                self._load_thumbnail_async(thumbnail_url)
-            else:
-                self.thumbnail_label.configure(image=None, text="")
+        
+        # Always pack info_frame to keep title and thumbnail visible in both modes
+        self.info_frame.pack(fill="x", pady=(10, 0), after=self.url_frame)
+        self.content_title_label.configure(text=f"{title}\n{info}{duration_str}", text_color=COLORS["text_primary"])
+        
+        if thumbnail_url:
+            self._load_thumbnail_async(thumbnail_url)
         else:
-            self.info_frame.pack_forget()
+            self.thumbnail_label.configure(image=None, text="")
+            
+        if self.format_frame.download_type.get() == "video":
+            self.player_frame.pack_forget()
+        else:
             self.player_frame.set_audio_title(f"{title} - {info}")
             if show_player:
-                self.player_frame.pack(fill="x", pady=(10, 0), after=self.url_frame)
+                self.player_frame.pack(fill="x", pady=(10, 0), after=self.info_frame)
             else:
                 self.player_frame.pack_forget()
         
@@ -467,9 +468,11 @@ class UniversalDownloader(ctk.CTk):
             if self.content_title_label.cget("text"):
                 self.info_frame.pack(fill="x", pady=(10, 0), after=self.url_frame)
         else:
-            self.info_frame.pack_forget()
-            if self.controller._preview_file and PYGAME_LOADED:
-                self.player_frame.pack(fill="x", pady=(10, 0), after=self.url_frame)
+            # Keep info_frame visible and pack player_frame under it
+            if self.content_title_label.cget("text"):
+                self.info_frame.pack(fill="x", pady=(10, 0), after=self.url_frame)
+                if self.controller._preview_file and PYGAME_LOADED:
+                    self.player_frame.pack(fill="x", pady=(10, 0), after=self.info_frame)
 
     def _update_status(self, message: str, status_type: str = "info"):
         colors = {
