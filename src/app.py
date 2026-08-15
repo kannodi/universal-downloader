@@ -309,6 +309,14 @@ class UniversalDownloader(ctk.CTk):
         )
         self.content_title_label.pack(fill="x", anchor="w")
         
+        self.open_link_btn = ctk.CTkButton(
+            text_column, text="🔗 Abrir en Navegador", height=24, width=120,
+            font=ctk.CTkFont(size=10, weight="bold"),
+            fg_color=COLORS["bg_tertiary"], hover_color=COLORS["accent"],
+            command=self.controller.open_in_browser
+        )
+        self.open_link_btn.pack(anchor="w", pady=(6, 0))
+        
         self.spotify_search_frame = ctk.CTkFrame(info_inner, fg_color="transparent")
         ctk.CTkLabel(
             self.spotify_search_frame, text="🔍 Nombre de canción y artista:",
@@ -474,6 +482,7 @@ class UniversalDownloader(ctk.CTk):
         self.url_frame.update_theme_color(color)
         self.format_frame.update_theme_color(color)
         self.player_frame.update_theme_color(color)
+        self.open_link_btn.configure(hover_color=color)
         self.progress_bar.configure(progress_color=color)
 
 

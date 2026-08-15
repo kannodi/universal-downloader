@@ -32,6 +32,13 @@ class DownloadController:
         self._download_url = None
         self._last_analyzed_url = None
 
+    def open_in_browser(self):
+        """Open the currently analyzed URL in the default system web browser."""
+        url = self._download_url or self.ui.url_frame.get_url()
+        if url:
+            import webbrowser
+            webbrowser.open(url)
+
     def _on_progress(self, progress: dict):
         status = progress.get('status', '')
         if status == 'downloading':
