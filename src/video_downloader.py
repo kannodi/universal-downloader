@@ -252,11 +252,14 @@ class VideoDownloader:
             start_sec = parse_time(trim_range.get("start", "0:00"))
             end_sec = parse_time(trim_range.get("end", "0:00"))
             if end_sec > start_sec:
+                # Use standard list instead of lambda callback to avoid deadlocks or serialization issues
                 ydl_opts['download_ranges'] = lambda info_dict, self_ydl: [{
                     'start_time': start_sec,
                     'end_time': end_sec,
-                    'title': info_dict.get('title', 'video')
+                    'title': info_dict.get('title', 'video') if info_dict else 'video'
                 }]
+                # Force external downloader compatibility for downloading ranges
+                ydl_opts['external_downloader'] = 'ffmpeg'
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -313,8 +316,9 @@ class VideoDownloader:
                 ydl_opts['download_ranges'] = lambda info_dict, self_ydl: [{
                     'start_time': start_sec,
                     'end_time': end_sec,
-                    'title': info_dict.get('title', 'audio')
+                    'title': info_dict.get('title', 'audio') if info_dict else 'audio'
                 }]
+                ydl_opts['external_downloader'] = 'ffmpeg'
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
