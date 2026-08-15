@@ -6,6 +6,7 @@ Checks for FFmpeg and other required tools on startup.
 import subprocess
 import sys
 import re
+import os
 from typing import Tuple, Optional
 from packaging import version
 
@@ -39,23 +40,84 @@ def check_ffmpeg() -> Tuple[bool, Optional[str], str]:
 
 def install_ffmpeg() -> Tuple[bool, str]:
     """
-    Install FFmpeg via winget in a subprocess.
+    Install FFmpeg by downloading gyan.dev release essentials zip,
+    extracting it globally, and setting machine PATH using an elevated PowerShell script.
     """
     if sys.platform != 'win32':
-        return False, "Instalación automática solo disponible en Windows"
+        return False, "Solo disponible en Windows"
+    
+    import urllib.request
+    import tempfile
+    
+    zip_url = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+    
     try:
+        # Create temp files
+        temp_dir = tempfile.gettempdir()
+        zip_path = os.path.join(temp_dir, "ffmpeg.zip")
+        ps_script_path = os.path.join(temp_dir, "install_ffmpeg.ps1")
+        
+        # 1. Download ZIP file
+        urllib.request.urlretrieve(zip_url, zip_path)
+        
+        # 2. Write elevated PowerShell installation script
+        ps_script_content = f"""
+$zipPath = "{zip_path}"
+$destDir = "C:\\Program Files\\FFmpeg"
+$binPath = "C:\\Program Files\\FFmpeg\\bin"
+
+# Ensure clean destination directory
+if (Test-Path $destDir) {{
+    Remove-Item -Path $destDir -Recurse -Force
+}}
+New-Item -ItemType Directory -Force -Path $destDir
+
+# Extract ZIP file
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+[System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $destDir)
+
+# FFmpeg extracts to a subfolder like ffmpeg-6.1-essentials_build
+$subfolder = Get-ChildItem -Path $destDir | Where-Object {{ $_.PSIsContainer }} | Select-Object -First 1
+
+if ($subfolder) {{
+    # Move binaries to bin root folder
+    Move-Item -Path "$($subfolder.FullName)\\*" -Destination $destDir -Force
+    Remove-Item -Path $subfolder.FullName -Recurse -Force
+}}
+
+# Add FFmpeg to Machine Path globally if not already present
+$path = [Environment]::GetEnvironmentVariable("Path", "Machine")
+if ($path -notlike "*$binPath*") {{
+    [Environment]::SetEnvironmentVariable("Path", "$path;$binPath", "Machine")
+}}
+"""
+        with open(ps_script_path, "w", encoding="utf-8") as f:
+            f.write(ps_script_content)
+            
+        # 3. Launch PowerShell script elevated using UAC (RunAs verb)
+        cmd = f"Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File \"{ps_script_path}\"' -Verb RunAs -Wait"
+        
         result = subprocess.run(
-            ['winget', 'install', 'FFmpeg', '--silent', '--accept-source-agreements', '--accept-package-agreements'],
+            ["powershell", "-Command", cmd],
             capture_output=True,
             text=True,
             creationflags=subprocess.CREATE_NO_WINDOW
         )
+        
+        # Clean up temp script files
+        try:
+            if os.path.exists(zip_path):
+                os.remove(zip_path)
+            if os.path.exists(ps_script_path):
+                os.remove(ps_script_path)
+        except:
+            pass
+            
         if result.returncode == 0:
-            return True, "FFmpeg instalado. Reinicia la aplicación."
+            return True, "FFmpeg instalado de forma global. Reinicia la aplicación."
         else:
-            return False, f"Fallo al instalar: {result.stderr or 'Error de winget'}"
-    except FileNotFoundError:
-        return False, "No se encontró 'winget'. Instálalo manualmente."
+            return False, "Error al solicitar permisos o instalar."
+            
     except Exception as e:
         return False, f"Error: {str(e)}"
 
