@@ -94,7 +94,7 @@ class DependencyDialog(ctk.CTkToplevel):
                 command=self._install_ffmpeg_action,
                 fg_color=COLORS["accent"],
                 hover_color=COLORS["accent_hover"],
-                width=200
+                width=130
             )
         else:
             self.action_btn = ctk.CTkButton(
@@ -103,9 +103,19 @@ class DependencyDialog(ctk.CTkToplevel):
                 command=self._update_ytdlp,
                 fg_color=COLORS["accent"],
                 hover_color=COLORS["accent_hover"],
-                width=200
+                width=130
             )
         self.action_btn.pack(side="left", padx=5)
+
+        self.restart_btn = ctk.CTkButton(
+            btn_frame,
+            text="Reiniciar",
+            command=self._restart_app,
+            fg_color=COLORS["bg_tertiary"],
+            hover_color=COLORS["accent"],
+            width=100
+        )
+        self.restart_btn.pack(side="left", padx=5)
         
         self.status_label = ctk.CTkLabel(
             self,
@@ -142,7 +152,7 @@ class DependencyDialog(ctk.CTkToplevel):
         threading.Thread(target=run_update, daemon=True).start()
 
     def _install_ffmpeg_action(self):
-        self.status_label.configure(text="Instalando FFmpeg vía winget...")
+        self.status_label.configure(text="Instalando FFmpeg globalmente...")
         self.action_btn.configure(state="disabled")
         self.update()
         
@@ -156,6 +166,18 @@ class DependencyDialog(ctk.CTkToplevel):
             
         import threading
         threading.Thread(target=run_install, daemon=True).start()
+
+    def _restart_app(self):
+        """Restarts the current python program."""
+        import sys
+        import subprocess
+        # Get parent window to destroy it cleanly
+        parent = self.master
+        parent.destroy()
+        
+        # Spawn a new process of main.py
+        subprocess.Popen([sys.executable, "main.py"])
+        sys.exit()
 
 
 class UniversalDownloader(ctk.CTk):
