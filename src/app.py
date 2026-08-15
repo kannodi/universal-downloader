@@ -15,7 +15,7 @@ except ImportError:
     PYGAME_LOADED = False
 
 from src.config import config
-from src.dependency_checker import check_all_dependencies, update_yt_dlp
+from src.dependency_checker import check_all_dependencies, update_yt_dlp, install_ffmpeg
 
 # Component imports
 from src.gui.colors import COLORS, SITE_COLORS
@@ -86,15 +86,26 @@ class DependencyDialog(ctk.CTkToplevel):
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.pack(pady=15)
         
-        self.update_ytdlp_btn = ctk.CTkButton(
-            btn_frame,
-            text="Actualizar yt-dlp",
-            command=self._update_ytdlp,
-            fg_color=COLORS["accent"],
-            hover_color=COLORS["accent_hover"],
-            width=200
-        )
-        self.update_ytdlp_btn.pack(side="left", padx=5)
+        # Show Install FFmpeg button if FFmpeg is missing, otherwise show Update yt-dlp
+        if not deps.get("ffmpeg", {}).get("installed", False):
+            self.action_btn = ctk.CTkButton(
+                btn_frame,
+                text="Instalar FFmpeg",
+                command=self._install_ffmpeg_action,
+                fg_color=COLORS["accent"],
+                hover_color=COLORS["accent_hover"],
+                width=200
+            )
+        else:
+            self.action_btn = ctk.CTkButton(
+                btn_frame,
+                text="Actualizar yt-dlp",
+                command=self._update_ytdlp,
+                fg_color=COLORS["accent"],
+                hover_color=COLORS["accent_hover"],
+                width=200
+            )
+        self.action_btn.pack(side="left", padx=5)
         
         self.status_label = ctk.CTkLabel(
             self,
@@ -116,7 +127,7 @@ class DependencyDialog(ctk.CTkToplevel):
 
     def _update_ytdlp(self):
         self.status_label.configure(text="Actualizando yt-dlp...")
-        self.update_ytdlp_btn.configure(state="disabled")
+        self.action_btn.configure(state="disabled")
         self.update()
         
         def run_update():
@@ -125,10 +136,26 @@ class DependencyDialog(ctk.CTkToplevel):
                 text=msg,
                 text_color=COLORS["success"] if success else COLORS["error"]
             ))
-            self.after(0, lambda: self.update_ytdlp_btn.configure(state="normal"))
+            self.after(0, lambda: self.action_btn.configure(state="normal"))
             
         import threading
         threading.Thread(target=run_update, daemon=True).start()
+
+    def _install_ffmpeg_action(self):
+        self.status_label.configure(text="Instalando FFmpeg vía winget...")
+        self.action_btn.configure(state="disabled")
+        self.update()
+        
+        def run_install():
+            success, msg = install_ffmpeg()
+            self.after(0, lambda: self.status_label.configure(
+                text=msg,
+                text_color=COLORS["success"] if success else COLORS["error"]
+            ))
+            self.after(0, lambda: self.action_btn.configure(state="normal"))
+            
+        import threading
+        threading.Thread(target=run_install, daemon=True).start()
 
 
 class UniversalDownloader(ctk.CTk):

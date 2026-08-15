@@ -25,17 +25,40 @@ def check_ffmpeg() -> Tuple[bool, Optional[str], str]:
             creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
         )
         if result.returncode == 0:
-            # Extract version from output
             output = result.stdout
             match = re.search(r'ffmpeg version (\S+)', output)
             ver = match.group(1) if match else "unknown"
             return True, ver, f"FFmpeg {ver} encontrado"
         else:
-            return False, None, "FFmpeg no está funcionando correctamente"
+            return False, None, "No funciona correctamente"
     except FileNotFoundError:
-        return False, None, "FFmpeg no está instalado. Por favor instálalo desde ffmpeg.org"
+        return False, None, "No instalado"
     except Exception as e:
-        return False, None, f"Error al verificar FFmpeg: {str(e)}"
+        return False, None, f"Error: {str(e)}"
+
+
+def install_ffmpeg() -> Tuple[bool, str]:
+    """
+    Install FFmpeg via winget in a subprocess.
+    """
+    if sys.platform != 'win32':
+        return False, "Instalación automática solo disponible en Windows"
+    try:
+        result = subprocess.run(
+            ['winget', 'install', 'FFmpeg', '--silent', '--accept-source-agreements', '--accept-package-agreements'],
+            capture_output=True,
+            text=True,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+        if result.returncode == 0:
+            return True, "FFmpeg instalado. Reinicia la aplicación."
+        else:
+            return False, f"Fallo al instalar: {result.stderr or 'Error de winget'}"
+    except FileNotFoundError:
+        return False, "No se encontró 'winget'. Instálalo manualmente."
+    except Exception as e:
+        return False, f"Error: {str(e)}"
+
 
 
 def check_yt_dlp() -> Tuple[bool, Optional[str], str]:
