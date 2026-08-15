@@ -464,10 +464,12 @@ class UniversalDownloader(ctk.CTk):
         self.controller.stop_preview()
         is_video = self.format_frame.download_type.get() == "video"
         if is_video:
+            self.open_video_btn.configure(text="▶ Vista Previa Video")
             self.player_frame.pack_forget()
             if self.content_title_label.cget("text"):
                 self.info_frame.pack(fill="x", pady=(10, 0), after=self.url_frame)
         else:
+            self.open_video_btn.configure(text="🎵 Pre-escucha Audio")
             # Keep info_frame visible and pack player_frame under it
             if self.content_title_label.cget("text"):
                 self.info_frame.pack(fill="x", pady=(10, 0), after=self.url_frame)

@@ -39,10 +39,15 @@ class DownloadController:
         self.ui._update_status(f"Recorte guardado: {start} a {end}", "success")
 
     def open_video_preview(self):
-        """Downloads a 10-second preview of the video and launches the custom VideoPreviewDialog."""
+        """Downloads a preview of the video and launches the custom VideoPreviewDialog (or plays audio inline if audio mode)."""
         url = self._download_url or self.ui.url_frame.get_url()
         if not url: return
         
+        # If download type is Audio, play audio inline instead of opening the video dialog
+        if self.ui.format_frame.download_type.get() == "audio":
+            self.download_preview(url)
+            return
+            
         self.ui._update_status("⚡ Descargando vista previa de video...", "info")
         self.ui.open_video_btn.configure(state="disabled")
         
