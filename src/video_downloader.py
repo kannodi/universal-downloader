@@ -252,16 +252,12 @@ class VideoDownloader:
             start_sec = parse_time(trim_range.get("start", "0:00"))
             end_sec = parse_time(trim_range.get("end", "0:00"))
             if end_sec > start_sec:
-                # yt-dlp expects download_ranges to be a function taking 1 argument (info_dict) and returning a list of dicts.
-                # If a lambda is wrong, we define a explicit helper function.
-                def range_helper(info_dict):
-                    return [{
-                        'start_time': start_sec,
-                        'end_time': end_sec,
-                        'title': info_dict.get('title', 'video') if info_dict else 'video'
-                    }]
-                ydl_opts['download_ranges'] = range_helper
-                # Also pass force_keyframes to ensure clean cuts at keyframes
+                # Direct callback syntax according to modern yt-dlp version specification
+                ydl_opts['download_ranges'] = lambda info_dict, self_ydl=None: [{
+                    'start_time': start_sec,
+                    'end_time': end_sec,
+                    'title': info_dict.get('title', 'video') if info_dict else 'video'
+                }]
                 ydl_opts['force_keyframes_at_cuts'] = True
         
         try:
@@ -316,13 +312,11 @@ class VideoDownloader:
             start_sec = parse_time(trim_range.get("start", "0:00"))
             end_sec = parse_time(trim_range.get("end", "0:00"))
             if end_sec > start_sec:
-                def range_helper(info_dict):
-                    return [{
-                        'start_time': start_sec,
-                        'end_time': end_sec,
-                        'title': info_dict.get('title', 'audio') if info_dict else 'audio'
-                    }]
-                ydl_opts['download_ranges'] = range_helper
+                ydl_opts['download_ranges'] = lambda info_dict, self_ydl=None: [{
+                    'start_time': start_sec,
+                    'end_time': end_sec,
+                    'title': info_dict.get('title', 'audio') if info_dict else 'audio'
+                }]
                 ydl_opts['force_keyframes_at_cuts'] = True
         
         try:
