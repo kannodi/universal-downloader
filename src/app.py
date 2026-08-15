@@ -230,10 +230,11 @@ class UniversalDownloader(ctk.CTk):
             except:
                 pass
         try:
-            cache_dir = os.path.join(os.getcwd(), ".audio_cache")
-            if os.path.exists(cache_dir):
-                import shutil
-                shutil.rmtree(cache_dir, ignore_errors=True)
+            for cache in [".audio_cache", ".video_cache"]:
+                cache_dir = os.path.join(os.getcwd(), cache)
+                if os.path.exists(cache_dir):
+                    import shutil
+                    shutil.rmtree(cache_dir, ignore_errors=True)
         except:
             pass
         self.destroy()
@@ -309,13 +310,13 @@ class UniversalDownloader(ctk.CTk):
         )
         self.content_title_label.pack(fill="x", anchor="w")
         
-        self.open_link_btn = ctk.CTkButton(
-            text_column, text="🔗 Abrir en Navegador", height=24, width=120,
+        self.open_video_btn = ctk.CTkButton(
+            text_column, text="▶ Vista Previa", height=24, width=120,
             font=ctk.CTkFont(size=10, weight="bold"),
             fg_color=COLORS["bg_tertiary"], hover_color=COLORS["accent"],
-            command=self.controller.open_in_browser
+            command=self.controller.open_video_preview
         )
-        self.open_link_btn.pack(anchor="w", pady=(6, 0))
+        self.open_video_btn.pack(anchor="w", pady=(6, 0))
         
         self.spotify_search_frame = ctk.CTkFrame(info_inner, fg_color="transparent")
         ctk.CTkLabel(
@@ -482,7 +483,7 @@ class UniversalDownloader(ctk.CTk):
         self.url_frame.update_theme_color(color)
         self.format_frame.update_theme_color(color)
         self.player_frame.update_theme_color(color)
-        self.open_link_btn.configure(hover_color=color)
+        self.open_video_btn.configure(hover_color=color)
         self.progress_bar.configure(progress_color=color)
 
 

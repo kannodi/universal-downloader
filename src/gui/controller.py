@@ -32,12 +32,57 @@ class DownloadController:
         self._download_url = None
         self._last_analyzed_url = None
 
-    def open_in_browser(self):
-        """Open the currently analyzed URL in the default system web browser."""
+    def open_video_preview(self):
+        """Downloads a 10-second preview of the video and launches the custom VideoPreviewDialog."""
         url = self._download_url or self.ui.url_frame.get_url()
-        if url:
-            import webbrowser
-            webbrowser.open(url)
+        if not url: return
+        
+        self.ui._update_status("⚡ Descargando vista previa de video...", "info")
+        self.ui.open_video_btn.configure(state="disabled")
+        
+        def run_preview_download():
+            try:
+                cache_dir = os.path.join(os.getcwd(), ".video_cache")
+                if not os.path.exists(cache_dir):
+                    os.makedirs(cache_dir)
+                    
+                url_hash = hashlib.md5(url.encode()).hexdigest()[:8]
+                temp_video = os.path.join(cache_dir, f"vid_{url_hash}.mp4")
+                
+                if not os.path.exists(temp_video):
+                    # Downloader options to extract only 10s of worst video/audio for fast preview
+                    ydl_opts = {
+                        'format': 'worstvideo[ext=mp4]+worstaudio/worst[ext=mp4]/worst',
+                        'outtmpl': temp_video.replace('.mp4', '.%(ext)s'),
+                        'quiet': True,
+                        'no_warnings': True,
+                        'external_downloader': 'ffmpeg',
+                        'external_downloader_args': {'ffmpeg': ['-t', '10']},  # Only 10 seconds
+                    }
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        ydl.download([url])
+                
+                # Retrieve actual output filename
+                actual_file = temp_video if os.path.exists(temp_video) else None
+                if not actual_file:
+                    for f in os.listdir(cache_dir):
+                        if f.startswith(f"vid_{url_hash}") and f.endswith(".mp4"):
+                            actual_file = os.path.join(cache_dir, f)
+                            break
+                            
+                if actual_file:
+                    self.ui.after(0, lambda: self.ui._update_status("Listo para reproducir", "success"))
+                    # Launch pop-up dialog
+                    from src.gui.components.video_player_dialog import VideoPreviewDialog
+                    self.ui.after(0, lambda f=actual_file: VideoPreviewDialog(self.ui, f))
+                else:
+                    self.ui.after(0, lambda: self.ui._update_status("Error al descargar vista previa", "error"))
+            except Exception as e:
+                self.ui.after(0, lambda: self.ui._update_status(f"Error preview: {str(e)}", "error"))
+            finally:
+                self.ui.after(0, lambda: self.ui.open_video_btn.configure(state="normal"))
+
+        threading.Thread(target=run_preview_download, daemon=True).start()
 
     def _on_progress(self, progress: dict):
         status = progress.get('status', '')
