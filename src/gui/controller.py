@@ -36,6 +36,7 @@ class DownloadController:
     def set_trim_range(self, start: str, end: str):
         """Sets the selected trim range to apply during final download."""
         self._trim_range = {"start": start, "end": end}
+        self.ui.format_frame.set_trim_values(start, end)
         self.ui._update_status(f"Recorte guardado: {start} a {end}", "success")
 
     def open_video_preview(self):
@@ -224,6 +225,9 @@ class DownloadController:
                     if self.ui.playlist_choice.get() == "single" and self._download_url:
                         actual_url = self._download_url
                 
+                # Pull trim range directly from the main UI frame controls
+                active_trim = self.ui.format_frame.get_trim_range()
+                
                 if url_type == "spotify":
                     search_query = self.ui.spotify_search_entry.get().strip()
                     if not search_query:
@@ -239,15 +243,17 @@ class DownloadController:
                     if download_type == "video":
                         success = self.video_downloader.download_video(
                             actual_url, output_path, quality, format_type, download_as_playlist,
-                            trim_range=self._trim_range
+                            trim_range=active_trim
                         )
                     else:
                         success = self.video_downloader.download_audio(
                             actual_url, output_path, quality, format_type, download_as_playlist,
-                            trim_range=self._trim_range
+                            trim_range=active_trim
                         )
                 
-                # Reset trim range after download completes or fails
+                # Reset trim range inside format_frame if finished
+                self.ui.after(0, lambda: self.ui.format_frame.trim_var.set(False))
+                self.ui.after(0, lambda: self.ui.format_frame._toggle_trim_inputs())
                 self._trim_range = None
                 
                 if not success:

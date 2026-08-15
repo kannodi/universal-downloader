@@ -81,6 +81,36 @@ class FormatFrame(ctk.CTkFrame):
         )
         self.browse_btn.pack(side="right")
         
+        # Trimming row (Start / End manual config)
+        self.trim_row = ctk.CTkFrame(inner, fg_color="transparent")
+        self.trim_row.pack(fill="x", pady=(8, 0))
+        
+        self.trim_var = ctk.BooleanVar(value=False)
+        self.trim_check = ctk.CTkCheckBox(
+            self.trim_row, text="Recortar", variable=self.trim_var,
+            font=ctk.CTkFont(size=11, weight="bold"), fg_color=COLORS["accent"],
+            checkbox_height=16, checkbox_width=16, command=self._toggle_trim_inputs
+        )
+        self.trim_check.pack(side="left", padx=(0, 10))
+        
+        self.trim_inputs_frame = ctk.CTkFrame(self.trim_row, fg_color="transparent")
+        
+        self.start_entry = ctk.CTkEntry(
+            self.trim_inputs_frame, placeholder_text="0:00", width=55, height=24, font=ctk.CTkFont(size=11),
+            fg_color=COLORS["bg_tertiary"], border_color=COLORS["accent"], border_width=1
+        )
+        self.start_entry.pack(side="left")
+        self.start_entry.insert(0, "0:00")
+        
+        ctk.CTkLabel(self.trim_inputs_frame, text="a", font=ctk.CTkFont(size=11)).pack(side="left", padx=5)
+        
+        self.end_entry = ctk.CTkEntry(
+            self.trim_inputs_frame, placeholder_text="0:00", width=55, height=24, font=ctk.CTkFont(size=11),
+            fg_color=COLORS["bg_tertiary"], border_color=COLORS["accent"], border_width=1
+        )
+        self.end_entry.pack(side="left")
+        self.end_entry.insert(0, "0:00")
+        
         # Options row
         options_row = ctk.CTkFrame(inner, fg_color="transparent")
         options_row.pack(fill="x", pady=(8, 0))
@@ -102,6 +132,32 @@ class FormatFrame(ctk.CTkFrame):
             checkbox_height=16, checkbox_width=16
         )
         self.always_on_top_check.pack(side="left", padx=(20, 0))
+
+    def _toggle_trim_inputs(self):
+        if self.trim_var.get():
+            self.trim_inputs_frame.pack(side="left", padx=5)
+        else:
+            self.trim_inputs_frame.pack_forget()
+
+    def get_trim_range(self):
+        """Returns the start and end values if trimming is enabled, else None."""
+        if self.trim_var.get():
+            return {
+                "start": self.start_entry.get().strip() or "0:00",
+                "end": self.end_entry.get().strip() or "0:00"
+            }
+        return None
+
+    def set_trim_values(self, start: str, end: str):
+        """Sets start/end times and enables the checkbox."""
+        self.trim_var.set(True)
+        self._toggle_trim_inputs()
+        
+        self.start_entry.delete(0, "end")
+        self.start_entry.insert(0, start)
+        
+        self.end_entry.delete(0, "end")
+        self.end_entry.insert(0, end)
 
     def _browse_folder(self):
         folder = filedialog.askdirectory(initialdir=self.path_entry.get() or config.get_download_path())
@@ -147,3 +203,6 @@ class FormatFrame(ctk.CTkFrame):
         self.browse_btn.configure(hover_color=color)
         self.remember_check.configure(fg_color=color)
         self.always_on_top_check.configure(fg_color=color)
+        self.trim_check.configure(fg_color=color)
+        self.start_entry.configure(border_color=color)
+        self.end_entry.configure(border_color=color)

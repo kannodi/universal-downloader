@@ -394,6 +394,12 @@ class UniversalDownloader(ctk.CTk):
         d = int(duration) if duration else 0
         duration_str = f" • {d // 60}:{d % 60:02d}" if d else ""
         
+        # Sincronizar campo de fin en el recortador
+        if d > 0:
+            formatted_end = f"{d // 60}:{d % 60:02d}"
+            self.format_frame.end_entry.delete(0, "end")
+            self.format_frame.end_entry.insert(0, formatted_end)
+        
         # Always pack info_frame to keep title and thumbnail visible in both modes
         self.info_frame.pack(fill="x", pady=(10, 0), after=self.url_frame)
         self.content_title_label.configure(text=f"{title}\n{info}{duration_str}", text_color=COLORS["text_primary"])
