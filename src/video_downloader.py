@@ -252,14 +252,17 @@ class VideoDownloader:
             start_sec = parse_time(trim_range.get("start", "0:00"))
             end_sec = parse_time(trim_range.get("end", "0:00"))
             if end_sec > start_sec:
-                # Use standard list instead of lambda callback to avoid deadlocks or serialization issues
-                ydl_opts['download_ranges'] = lambda info_dict, self_ydl: [{
-                    'start_time': start_sec,
-                    'end_time': end_sec,
-                    'title': info_dict.get('title', 'video') if info_dict else 'video'
-                }]
-                # Force external downloader compatibility for downloading ranges
-                ydl_opts['external_downloader'] = 'ffmpeg'
+                # yt-dlp expects download_ranges to be a function taking 1 argument (info_dict) and returning a list of dicts.
+                # If a lambda is wrong, we define a explicit helper function.
+                def range_helper(info_dict):
+                    return [{
+                        'start_time': start_sec,
+                        'end_time': end_sec,
+                        'title': info_dict.get('title', 'video') if info_dict else 'video'
+                    }]
+                ydl_opts['download_ranges'] = range_helper
+                # Also pass force_keyframes to ensure clean cuts at keyframes
+                ydl_opts['force_keyframes_at_cuts'] = True
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -313,12 +316,14 @@ class VideoDownloader:
             start_sec = parse_time(trim_range.get("start", "0:00"))
             end_sec = parse_time(trim_range.get("end", "0:00"))
             if end_sec > start_sec:
-                ydl_opts['download_ranges'] = lambda info_dict, self_ydl: [{
-                    'start_time': start_sec,
-                    'end_time': end_sec,
-                    'title': info_dict.get('title', 'audio') if info_dict else 'audio'
-                }]
-                ydl_opts['external_downloader'] = 'ffmpeg'
+                def range_helper(info_dict):
+                    return [{
+                        'start_time': start_sec,
+                        'end_time': end_sec,
+                        'title': info_dict.get('title', 'audio') if info_dict else 'audio'
+                    }]
+                ydl_opts['download_ranges'] = range_helper
+                ydl_opts['force_keyframes_at_cuts'] = True
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
