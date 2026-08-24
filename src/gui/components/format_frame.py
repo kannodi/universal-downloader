@@ -132,6 +132,30 @@ class FormatFrame(ctk.CTkFrame):
             checkbox_height=16, checkbox_width=16
         )
         self.always_on_top_check.pack(side="left", padx=(20, 0))
+        
+        # New Desktop and Clipboard row
+        extra_options_row = ctk.CTkFrame(inner, fg_color="transparent")
+        extra_options_row.pack(fill="x", pady=(6, 0))
+        
+        self.desktop_var = ctk.BooleanVar(value=False)
+        self.desktop_check = ctk.CTkCheckBox(
+            extra_options_row, text="Descargar en Escritorio",
+            variable=self.desktop_var, command=self._toggle_desktop_path,
+            font=ctk.CTkFont(size=11), fg_color=COLORS["accent"],
+            checkbox_height=16, checkbox_width=16
+        )
+        self.desktop_check.pack(side="left")
+        
+        self.clipboard_var = ctk.BooleanVar(value=False)
+        self.clipboard_check = ctk.CTkCheckBox(
+            extra_options_row, text="Copiar al portapapeles",
+            variable=self.clipboard_var,
+            font=ctk.CTkFont(size=11), fg_color=COLORS["accent"],
+            checkbox_height=16, checkbox_width=16
+        )
+        self.clipboard_check.pack(side="left", padx=(20, 0))
+        
+        self._saved_user_path = ""
 
     def _toggle_trim_inputs(self):
         if self.trim_var.get():
@@ -158,6 +182,24 @@ class FormatFrame(ctk.CTkFrame):
         
         self.end_entry.delete(0, "end")
         self.end_entry.insert(0, end)
+
+    def _toggle_desktop_path(self):
+        if self.desktop_var.get():
+            self._saved_user_path = self.path_entry.get().strip()
+            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+            self.path_entry.delete(0, "end")
+            self.path_entry.insert(0, desktop)
+            # Temporarily disable entry and browse button to prevent editing
+            self.path_entry.configure(state="readonly")
+            self.browse_btn.configure(state="disabled")
+        else:
+            self.path_entry.configure(state="normal")
+            self.browse_btn.configure(state="normal")
+            self.path_entry.delete(0, "end")
+            self.path_entry.insert(0, self._saved_user_path or config.get_download_path())
+
+    def is_clipboard_enabled(self) -> bool:
+        return self.clipboard_var.get()
 
     def _browse_folder(self):
         folder = filedialog.askdirectory(initialdir=self.path_entry.get() or config.get_download_path())
@@ -206,3 +248,5 @@ class FormatFrame(ctk.CTkFrame):
         self.trim_check.configure(fg_color=color)
         self.start_entry.configure(border_color=color)
         self.end_entry.configure(border_color=color)
+        self.desktop_check.configure(fg_color=color)
+        self.clipboard_check.configure(fg_color=color)

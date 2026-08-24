@@ -105,7 +105,26 @@ class DownloadController:
         elif status == 'finished':
             self.ui.after(0, lambda: self.ui.progress_bar.set(1))
             self.ui.after(0, lambda: self.ui.progress_label.configure(text="Descarga completada"))
-            self.ui.after(0, lambda: self.ui._update_status("Descarga completada exitosamente", "success"))
+            
+            # Copy to clipboard if enabled
+            filename = progress.get('filename')
+            if filename and os.path.exists(filename) and self.ui.format_frame.is_clipboard_enabled():
+                def copy_file_to_clipboard(file_path):
+                    try:
+                        # PowerShell script to copy a file object to clipboard
+                        abs_path = os.path.abspath(file_path)
+                        cmd = f"powershell -NoProfile -Command \"Set-Clipboard -Path '{abs_path}'\""
+                        import subprocess
+                        subprocess.run(cmd, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                        self.ui.after(0, lambda: self.ui._update_status("Descarga completada y copiada al portapapeles", "success"))
+                    except Exception as e:
+                        print(f"Error copying to clipboard: {e}")
+                        self.ui.after(0, lambda: self.ui._update_status("Descarga completada (error al copiar portapapeles)", "warning"))
+                
+                threading.Thread(target=copy_file_to_clipboard, args=(filename,), daemon=True).start()
+            else:
+                self.ui.after(0, lambda: self.ui._update_status("Descarga completada exitosamente", "success"))
+                
             self.ui.after(0, lambda: self._set_downloading(False))
         elif status == 'error':
             error = progress.get('error', 'Error desconocido')
