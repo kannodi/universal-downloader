@@ -22,15 +22,15 @@ class FormatFrame(ctk.CTkFrame):
         row1.pack(fill="x")
         
         self.video_radio = ctk.CTkRadioButton(
-            row1, text="▶️ Video", variable=self.download_type, value="video",
-            command=self._on_type_change, width=80,
+            row1, text="▶️", variable=self.download_type, value="video",
+            command=self._on_type_change, width=50,
             font=ctk.CTkFont(size=11, weight="bold"), fg_color=COLORS["accent"], border_color=COLORS["accent"]
         )
         self.video_radio.pack(side="left", padx=(0, 8))
         
         self.audio_radio = ctk.CTkRadioButton(
-            row1, text="🎵 Audio", variable=self.download_type, value="audio",
-            command=self._on_type_change, width=80,
+            row1, text="🎵", variable=self.download_type, value="audio",
+            command=self._on_type_change, width=50,
             font=ctk.CTkFont(size=11, weight="bold"), fg_color=COLORS["accent"], border_color=COLORS["accent"]
         )
         self.audio_radio.pack(side="left", padx=(0, 15))
@@ -79,7 +79,7 @@ class FormatFrame(ctk.CTkFrame):
         
         self.trim_var = ctk.BooleanVar(value=False)
         self.trim_check = ctk.CTkCheckBox(
-            self.trim_row, text="✂️ Recortar", variable=self.trim_var,
+            self.trim_row, text="✂️", variable=self.trim_var,
             font=ctk.CTkFont(size=11, weight="bold"), fg_color=COLORS["accent"],
             checkbox_height=16, checkbox_width=16, command=self._toggle_trim_inputs
         )
@@ -148,7 +148,7 @@ class FormatFrame(ctk.CTkFrame):
         # Row 2
         self.no_audio_var = ctk.BooleanVar(value=False)
         self.no_audio_check = ctk.CTkCheckBox(
-            self.options_grid, text="🔇 Sin sonido",
+            self.options_grid, text="🔇",
             variable=self.no_audio_var,
             font=ctk.CTkFont(size=11), fg_color=COLORS["accent"],
             checkbox_height=16, checkbox_width=16
