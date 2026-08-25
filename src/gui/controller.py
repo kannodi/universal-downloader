@@ -145,11 +145,12 @@ class DownloadController:
                                 return
 
                         # 2. Call elevated/clean PowerShell command using System.Windows.Forms to set File Drop List (real file copy)
-                        abs_path = os.path.abspath(actual_path)
+                        # Escape single quotes for PowerShell (single quotes are doubled in PS strings)
+                        escaped_path = abs_path.replace("'", "''")
                         ps_script = (
                             "Add-Type -AssemblyName System.Windows.Forms; "
                             "$list = New-Object System.Collections.Specialized.StringCollection; "
-                            f"[void]$list.Add('{abs_path.replace(\"'\", \"''\")}'); "
+                            f"[void]$list.Add('{escaped_path}'); "
                             "[System.Windows.Forms.Clipboard]::SetFileDropList($list);"
                         )
                         cmd = f"powershell -NoProfile -Command \"{ps_script}\""
