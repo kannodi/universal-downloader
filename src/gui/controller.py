@@ -259,10 +259,13 @@ class DownloadController:
                     if self._playlist_info and self._playlist_info.get('is_playlist'):
                         download_as_playlist = (self.ui.playlist_choice.get() == "playlist")
                     
+                    # Extract if no audio (mute) checkbox is enabled in format_frame
+                    silent_video = self.ui.format_frame.is_no_audio_enabled()
+                    
                     if download_type == "video":
                         success = self.video_downloader.download_video(
                             actual_url, output_path, quality, format_type, download_as_playlist,
-                            trim_range=active_trim
+                            trim_range=active_trim, no_audio=silent_video
                         )
                     else:
                         success = self.video_downloader.download_audio(

@@ -220,13 +220,17 @@ class VideoDownloader:
         }
     
     def download_video(self, url: str, output_path: str, quality: str = "1080p", 
-                     format_type: str = "mp4", is_playlist: bool = False, trim_range: Optional[Dict] = None) -> bool:
+                     format_type: str = "mp4", is_playlist: bool = False, trim_range: Optional[Dict] = None, no_audio: bool = False) -> bool:
         """Download a single video or full playlist."""
         # Parse quality to get height
         height_match = QUALITY_HEIGHT_REGEX.match(quality)
         height = int(height_match.group(1)) if height_match else 1080
         
-        format_string = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]/best'
+        if no_audio:
+            # Only request bestvideo (mute)
+            format_string = f'bestvideo[height<={height}]/bestvideo/best'
+        else:
+            format_string = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]/best'
         
         ydl_opts = self.DEFAULT_YDL_OPTS.copy()
         ydl_opts.update({

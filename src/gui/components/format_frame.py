@@ -111,49 +111,57 @@ class FormatFrame(ctk.CTkFrame):
         self.end_entry.pack(side="left")
         self.end_entry.insert(0, "0:00")
         
-        # Options row
-        options_row = ctk.CTkFrame(inner, fg_color="transparent")
-        options_row.pack(fill="x", pady=(8, 0))
+        # Grid Options Frame for better spacing
+        self.options_grid = ctk.CTkFrame(inner, fg_color="transparent")
+        self.options_grid.pack(fill="x", pady=(10, 0))
         
+        # Row 0
         self.remember_var = ctk.BooleanVar(value=config.get("remember_location", True))
         self.remember_check = ctk.CTkCheckBox(
-            options_row, text="Recordar ubicación",
+            self.options_grid, text="Recordar ubicación",
             variable=self.remember_var, command=self._on_remember_change,
             font=ctk.CTkFont(size=11), fg_color=COLORS["accent"],
             checkbox_height=16, checkbox_width=16
         )
-        self.remember_check.pack(side="left")
+        self.remember_check.grid(row=0, column=0, sticky="w", pady=(0, 6), padx=(0, 15))
         
         self.always_on_top_var = ctk.BooleanVar(value=config.get("always_on_top", False))
         self.always_on_top_check = ctk.CTkCheckBox(
-            options_row, text="Mantener siempre arriba",
+            self.options_grid, text="Mantener siempre arriba",
             variable=self.always_on_top_var, command=self._toggle_always_on_top,
             font=ctk.CTkFont(size=11), fg_color=COLORS["accent"],
             checkbox_height=16, checkbox_width=16
         )
-        self.always_on_top_check.pack(side="left", padx=(20, 0))
+        self.always_on_top_check.grid(row=0, column=1, sticky="w", pady=(0, 6))
         
-        # New Desktop and Clipboard row
-        extra_options_row = ctk.CTkFrame(inner, fg_color="transparent")
-        extra_options_row.pack(fill="x", pady=(6, 0))
-        
+        # Row 1
         self.desktop_var = ctk.BooleanVar(value=False)
         self.desktop_check = ctk.CTkCheckBox(
-            extra_options_row, text="Descargar en Escritorio",
+            self.options_grid, text="Descargar en Escritorio",
             variable=self.desktop_var, command=self._toggle_desktop_path,
             font=ctk.CTkFont(size=11), fg_color=COLORS["accent"],
             checkbox_height=16, checkbox_width=16
         )
-        self.desktop_check.pack(side="left")
+        self.desktop_check.grid(row=1, column=0, sticky="w", pady=(0, 6), padx=(0, 15))
         
         self.clipboard_var = ctk.BooleanVar(value=False)
         self.clipboard_check = ctk.CTkCheckBox(
-            extra_options_row, text="Copiar al portapapeles",
+            self.options_grid, text="Copiar al portapapeles",
             variable=self.clipboard_var,
             font=ctk.CTkFont(size=11), fg_color=COLORS["accent"],
             checkbox_height=16, checkbox_width=16
         )
-        self.clipboard_check.pack(side="left", padx=(20, 0))
+        self.clipboard_check.grid(row=1, column=1, sticky="w", pady=(0, 6))
+        
+        # Row 2
+        self.no_audio_var = ctk.BooleanVar(value=False)
+        self.no_audio_check = ctk.CTkCheckBox(
+            self.options_grid, text="Sin sonido (Mute)",
+            variable=self.no_audio_var,
+            font=ctk.CTkFont(size=11), fg_color=COLORS["accent"],
+            checkbox_height=16, checkbox_width=16
+        )
+        self.no_audio_check.grid(row=2, column=0, sticky="w")
         
         self._saved_user_path = ""
 
@@ -201,6 +209,9 @@ class FormatFrame(ctk.CTkFrame):
     def is_clipboard_enabled(self) -> bool:
         return self.clipboard_var.get()
 
+    def is_no_audio_enabled(self) -> bool:
+        return self.no_audio_var.get()
+
     def _browse_folder(self):
         folder = filedialog.askdirectory(initialdir=self.path_entry.get() or config.get_download_path())
         if folder:
@@ -226,11 +237,14 @@ class FormatFrame(ctk.CTkFrame):
             self.quality_combo.set("1080p")
             self.format_combo.configure(values=["mp4", "mkv", "webm"])
             self.format_combo.set("mp4")
+            self.no_audio_check.configure(state="normal")
         else:
             self.quality_combo.configure(values=["320kbps", "256kbps", "192kbps", "128kbps"])
             self.quality_combo.set("320kbps")
             self.format_combo.configure(values=["mp3", "m4a", "wav", "flac"])
             self.format_combo.set("mp3")
+            self.no_audio_var.set(False)
+            self.no_audio_check.configure(state="disabled")
         self.on_type_change()
 
     def get_output_path(self) -> str:
@@ -250,3 +264,4 @@ class FormatFrame(ctk.CTkFrame):
         self.end_entry.configure(border_color=color)
         self.desktop_check.configure(fg_color=color)
         self.clipboard_check.configure(fg_color=color)
+        self.no_audio_check.configure(fg_color=color)
