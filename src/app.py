@@ -342,17 +342,7 @@ class UniversalDownloader(ctk.CTk):
         self.format_frame = FormatFrame(main_frame, on_type_change=self._on_type_change)
         self.format_frame.pack(fill="x", pady=(0, 4))
 
-        # Formats Display
-        self.formats_frame = ctk.CTkFrame(main_frame, fg_color=COLORS["bg_secondary"], corner_radius=8)
-        self.formats_frame.pack(fill="x", pady=(0, 4))
-        formats_inner = ctk.CTkFrame(self.formats_frame, fg_color="transparent")
-        formats_inner.pack(fill="x", padx=10, pady=6)
-        
-        self.available_formats_label = ctk.CTkLabel(
-            formats_inner, text="Video: 1080p, 720p, 480p | Audio: 320kbps, 256kbps, 192kbps",
-            font=ctk.CTkFont(size=11), text_color=COLORS["text_secondary"]
-        )
-        self.available_formats_label.pack(anchor="w")
+
 
         # Progress component
         progress_frame = ctk.CTkFrame(main_frame, fg_color=COLORS["bg_secondary"], corner_radius=8)
@@ -417,10 +407,6 @@ class UniversalDownloader(ctk.CTk):
                 self.player_frame.pack(fill="x", pady=(10, 0), after=self.info_frame)
             else:
                 self.player_frame.pack_forget()
-        
-        self.available_formats_label.configure(
-            text="Video: 1080p, 720p, 480p, 360p\nAudio: 320kbps, 256kbps, 192kbps, 128kbps"
-        )
 
     def _load_thumbnail_async(self, url: str):
         """Downloads the video thumbnail and displays it on the UI as CTkImage."""

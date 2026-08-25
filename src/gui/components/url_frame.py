@@ -34,11 +34,11 @@ class UrlFrame(ctk.CTkFrame):
         
         self.analyze_btn = ctk.CTkButton(
             row,
-            text="Analizar",
+            text="🔍",
             command=on_analyze,
-            width=80,
+            width=40,
             height=32,
-            font=ctk.CTkFont(size=11, weight="bold"),
+            font=ctk.CTkFont(size=14, weight="bold"),
             fg_color=COLORS["accent"],
             hover_color=COLORS["accent_hover"]
         )
@@ -46,11 +46,11 @@ class UrlFrame(ctk.CTkFrame):
 
         self.download_btn = ctk.CTkButton(
             row,
-            text="Descargar",
+            text="📥",
             command=on_download,
-            width=90,
+            width=40,
             height=32,
-            font=ctk.CTkFont(size=11, weight="bold"),
+            font=ctk.CTkFont(size=14, weight="bold"),
             fg_color=COLORS["accent"],
             hover_color=COLORS["accent_hover"]
         )
@@ -66,16 +66,16 @@ class UrlFrame(ctk.CTkFrame):
 
     def set_analyzing(self, analyzing: bool):
         if analyzing:
-            self.analyze_btn.configure(state="disabled", text="Analizando...")
+            self.analyze_btn.configure(state="disabled", text="⌛")
         else:
-            self.analyze_btn.configure(state="normal", text="Analizar")
+            self.analyze_btn.configure(state="normal", text="🔍")
 
     def set_downloading(self, downloading: bool):
         if downloading:
-            self.download_btn.configure(state="disabled", text="Descargando...")
+            self.download_btn.configure(state="disabled", text="⌛")
             self.analyze_btn.configure(state="disabled")
         else:
-            self.download_btn.configure(state="normal", text="Descargar")
+            self.download_btn.configure(state="normal", text="📥")
             self.analyze_btn.configure(state="normal")
 
     def update_theme_color(self, color: str):

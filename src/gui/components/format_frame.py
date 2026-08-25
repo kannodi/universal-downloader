@@ -22,23 +22,20 @@ class FormatFrame(ctk.CTkFrame):
         row1.pack(fill="x")
         
         self.video_radio = ctk.CTkRadioButton(
-            row1, text="Video", variable=self.download_type, value="video",
-            command=self._on_type_change, width=70,
-            font=ctk.CTkFont(size=11), fg_color=COLORS["accent"], border_color=COLORS["accent"]
+            row1, text="▶️ Video", variable=self.download_type, value="video",
+            command=self._on_type_change, width=80,
+            font=ctk.CTkFont(size=11, weight="bold"), fg_color=COLORS["accent"], border_color=COLORS["accent"]
         )
         self.video_radio.pack(side="left", padx=(0, 8))
         
         self.audio_radio = ctk.CTkRadioButton(
-            row1, text="Audio", variable=self.download_type, value="audio",
-            command=self._on_type_change, width=70,
-            font=ctk.CTkFont(size=11), fg_color=COLORS["accent"], border_color=COLORS["accent"]
+            row1, text="🎵 Audio", variable=self.download_type, value="audio",
+            command=self._on_type_change, width=80,
+            font=ctk.CTkFont(size=11, weight="bold"), fg_color=COLORS["accent"], border_color=COLORS["accent"]
         )
-        self.audio_radio.pack(side="left", padx=(0, 10))
+        self.audio_radio.pack(side="left", padx=(0, 15))
         
-        # Quality
-        quality_label = ctk.CTkLabel(row1, text="Res:", font=ctk.CTkFont(size=11), text_color=COLORS["text_primary"])
-        quality_label.pack(side="left", padx=(0, 2))
-        
+        # Quality (Remove label, direct combo)
         self.quality_combo = ctk.CTkComboBox(
             row1, values=["Mejor", "1080p", "720p", "480p", "360p"],
             width=95, height=26, font=ctk.CTkFont(size=11),
@@ -48,10 +45,7 @@ class FormatFrame(ctk.CTkFrame):
         self.quality_combo.pack(side="left", padx=(0, 10))
         self.quality_combo.set("1080p")
         
-        # Format
-        format_label = ctk.CTkLabel(row1, text="Fmt:", font=ctk.CTkFont(size=11), text_color=COLORS["text_primary"])
-        format_label.pack(side="left", padx=(0, 2))
-        
+        # Format (Remove label, direct combo)
         self.format_combo = ctk.CTkComboBox(
             row1, values=["mp4", "mkv", "webm"],
             width=85, height=26, font=ctk.CTkFont(size=11),
@@ -61,11 +55,9 @@ class FormatFrame(ctk.CTkFrame):
         self.format_combo.pack(side="left")
         self.format_combo.set("mp4")
 
-        # Output Path widgets
+        # Output Path widgets (Remove label)
         self.path_row = ctk.CTkFrame(inner, fg_color="transparent")
         self.path_row.pack(fill="x", pady=(10, 0))
-        
-        ctk.CTkLabel(self.path_row, text="Ruta:", font=ctk.CTkFont(size=11)).pack(side="left", padx=(0, 5))
         
         self.path_entry = ctk.CTkEntry(
             self.path_row, height=30, font=ctk.CTkFont(size=11),
@@ -87,7 +79,7 @@ class FormatFrame(ctk.CTkFrame):
         
         self.trim_var = ctk.BooleanVar(value=False)
         self.trim_check = ctk.CTkCheckBox(
-            self.trim_row, text="Recortar", variable=self.trim_var,
+            self.trim_row, text="✂️ Recortar", variable=self.trim_var,
             font=ctk.CTkFont(size=11, weight="bold"), fg_color=COLORS["accent"],
             checkbox_height=16, checkbox_width=16, command=self._toggle_trim_inputs
         )
@@ -156,7 +148,7 @@ class FormatFrame(ctk.CTkFrame):
         # Row 2
         self.no_audio_var = ctk.BooleanVar(value=False)
         self.no_audio_check = ctk.CTkCheckBox(
-            self.options_grid, text="Sin sonido (Mute)",
+            self.options_grid, text="🔇 Sin sonido",
             variable=self.no_audio_var,
             font=ctk.CTkFont(size=11), fg_color=COLORS["accent"],
             checkbox_height=16, checkbox_width=16
