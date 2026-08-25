@@ -73,36 +73,6 @@ class FormatFrame(ctk.CTkFrame):
         )
         self.browse_btn.pack(side="right")
         
-        # Trimming row (Start / End manual config)
-        self.trim_row = ctk.CTkFrame(inner, fg_color="transparent")
-        self.trim_row.pack(fill="x", pady=(8, 0))
-        
-        self.trim_var = ctk.BooleanVar(value=False)
-        self.trim_check = ctk.CTkCheckBox(
-            self.trim_row, text="✂️", variable=self.trim_var,
-            font=ctk.CTkFont(size=11, weight="bold"), fg_color=COLORS["accent"],
-            checkbox_height=16, checkbox_width=16, command=self._toggle_trim_inputs
-        )
-        self.trim_check.pack(side="left", padx=(0, 10))
-        
-        self.trim_inputs_frame = ctk.CTkFrame(self.trim_row, fg_color="transparent")
-        
-        self.start_entry = ctk.CTkEntry(
-            self.trim_inputs_frame, placeholder_text="0:00", width=55, height=24, font=ctk.CTkFont(size=11),
-            fg_color=COLORS["bg_tertiary"], border_color=COLORS["accent"], border_width=1
-        )
-        self.start_entry.pack(side="left")
-        self.start_entry.insert(0, "0:00")
-        
-        ctk.CTkLabel(self.trim_inputs_frame, text="a", font=ctk.CTkFont(size=11)).pack(side="left", padx=5)
-        
-        self.end_entry = ctk.CTkEntry(
-            self.trim_inputs_frame, placeholder_text="0:00", width=55, height=24, font=ctk.CTkFont(size=11),
-            fg_color=COLORS["bg_tertiary"], border_color=COLORS["accent"], border_width=1
-        )
-        self.end_entry.pack(side="left")
-        self.end_entry.insert(0, "0:00")
-        
         # Grid Options Frame for better spacing
         self.options_grid = ctk.CTkFrame(inner, fg_color="transparent")
         self.options_grid.pack(fill="x", pady=(10, 0))
@@ -145,15 +115,44 @@ class FormatFrame(ctk.CTkFrame):
         )
         self.clipboard_check.grid(row=1, column=1, sticky="w", pady=(0, 6))
         
-        # Row 2
+        # Row 2 (Compact icons row: Trim & No Audio/Mute)
+        icons_row_frame = ctk.CTkFrame(self.options_grid, fg_color="transparent")
+        icons_row_frame.grid(row=2, column=0, columnspan=2, sticky="w", pady=(2, 0))
+        
+        self.trim_var = ctk.BooleanVar(value=False)
+        self.trim_check = ctk.CTkCheckBox(
+            icons_row_frame, text="✂️", variable=self.trim_var,
+            font=ctk.CTkFont(size=11, weight="bold"), fg_color=COLORS["accent"],
+            checkbox_height=16, checkbox_width=16, command=self._toggle_trim_inputs
+        )
+        self.trim_check.pack(side="left", padx=(0, 10))
+        
+        self.trim_inputs_frame = ctk.CTkFrame(icons_row_frame, fg_color="transparent")
+        
+        self.start_entry = ctk.CTkEntry(
+            self.trim_inputs_frame, placeholder_text="0:00", width=55, height=24, font=ctk.CTkFont(size=11),
+            fg_color=COLORS["bg_tertiary"], border_color=COLORS["accent"], border_width=1
+        )
+        self.start_entry.pack(side="left")
+        self.start_entry.insert(0, "0:00")
+        
+        ctk.CTkLabel(self.trim_inputs_frame, text="a", font=ctk.CTkFont(size=11)).pack(side="left", padx=5)
+        
+        self.end_entry = ctk.CTkEntry(
+            self.trim_inputs_frame, placeholder_text="0:00", width=55, height=24, font=ctk.CTkFont(size=11),
+            fg_color=COLORS["bg_tertiary"], border_color=COLORS["accent"], border_width=1
+        )
+        self.end_entry.pack(side="left")
+        self.end_entry.insert(0, "0:00")
+        
         self.no_audio_var = ctk.BooleanVar(value=False)
         self.no_audio_check = ctk.CTkCheckBox(
-            self.options_grid, text="🔇",
+            icons_row_frame, text="🔇",
             variable=self.no_audio_var,
             font=ctk.CTkFont(size=11), fg_color=COLORS["accent"],
             checkbox_height=16, checkbox_width=16
         )
-        self.no_audio_check.grid(row=2, column=0, sticky="w")
+        self.no_audio_check.pack(side="left", padx=(15, 0))
         
         self._saved_user_path = ""
 
