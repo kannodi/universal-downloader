@@ -136,10 +136,11 @@ class VideoDownloader:
     
     def get_single_video_url(self, playlist_url: str) -> Optional[str]:
         """
-        Extract single video URL from a playlist URL if it contains a video ID.
+        Extract single video URL from a playlist URL if it contains a video ID,
+        otherwise fallback to extracting the URL of the first video in the playlist.
         
         Args:
-            playlist_url: URL that may contain both playlist and video ID
+            playlist_url: URL of the video/playlist
             
         Returns:
             Single video URL or None
@@ -147,6 +148,25 @@ class VideoDownloader:
         video_match = YOUTUBE_VIDEO_ID_REGEX.search(playlist_url)
         if video_match:
             return f"https://www.youtube.com/watch?v={video_match.group(1)}"
+            
+        # Fallback: Extract the first video's URL from the playlist metadata
+        try:
+            ydl_opts = self.DEFAULT_YDL_OPTS.copy()
+            ydl_opts['extract_flat'] = True
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(playlist_url, download=False)
+                if info and 'entries' in info:
+                    entries = list(info.get('entries', []))
+                    if entries and entries[0]:
+                        first_entry = entries[0]
+                        # Some extractors return 'url' directly, others return 'id'
+                        video_id = first_entry.get('id') or first_entry.get('url')
+                        if video_id:
+                            if video_id.startswith('http'):
+                                return video_id
+                            return f"https://www.youtube.com/watch?v={video_id}"
+        except Exception as e:
+            print(f"Error falling back to first playlist video: {e}")
         return None
     
     def get_available_formats(self, url: str) -> Dict[str, List[Dict]]:
