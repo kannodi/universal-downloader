@@ -108,12 +108,52 @@ class DownloadController:
             
             # Copy to clipboard if enabled
             filename = progress.get('filename')
-            if filename and os.path.exists(filename) and self.ui.format_frame.is_clipboard_enabled():
+            if filename and self.ui.format_frame.is_clipboard_enabled():
                 def copy_file_to_clipboard(file_path):
                     try:
-                        # PowerShell script to copy a file object to clipboard
-                        abs_path = os.path.abspath(file_path)
-                        cmd = f"powershell -NoProfile -Command \"Set-Clipboard -Path '{abs_path}'\""
+                        # 1. Resolve final path if extension changed during post-processing
+                        actual_path = file_path
+                        download_type = self.ui.format_frame.download_type.get()
+                        
+                        if download_type == "audio":
+                            target_ext = self.ui.format_frame.format_combo.get() # mp3, wav, etc.
+                            base, _ = os.path.splitext(file_path)
+                            possible_path = f"{base}.{target_ext}"
+                            if os.path.exists(possible_path):
+                                actual_path = possible_path
+                        
+                        # Wait briefly for postprocessors/FFmpeg to finish renaming the file
+                        import time
+                        retries = 10
+                        while not os.path.exists(actual_path) and retries > 0:
+                            time.sleep(0.5)
+                            retries -= 1
+                            
+                        if not os.path.exists(actual_path):
+                            # Try searching directory for matching title if yt-dlp reported temp format
+                            dir_name = os.path.dirname(actual_path)
+                            base_name = os.path.splitext(os.path.basename(actual_path))[0]
+                            found = False
+                            if os.path.isdir(dir_name):
+                                for f in os.listdir(dir_name):
+                                    if os.path.splitext(f)[0] == base_name:
+                                        actual_path = os.path.join(dir_name, f)
+                                        found = True
+                                        break
+                            if not found:
+                                self.ui.after(0, lambda: self.ui._update_status("Descarga completada (no se encontró archivo final para portapapeles)", "warning"))
+                                return
+
+                        # 2. Call elevated/clean PowerShell command using System.Windows.Forms to set File Drop List (real file copy)
+                        abs_path = os.path.abspath(actual_path)
+                        ps_script = (
+                            "Add-Type -AssemblyName System.Windows.Forms; "
+                            "$list = New-Object System.Collections.Specialized.StringCollection; "
+                            f"[void]$list.Add('{abs_path.replace(\"'\", \"''\")}'); "
+                            "[System.Windows.Forms.Clipboard]::SetFileDropList($list);"
+                        )
+                        cmd = f"powershell -NoProfile -Command \"{ps_script}\""
+                        
                         import subprocess
                         subprocess.run(cmd, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
                         self.ui.after(0, lambda: self.ui._update_status("Descarga completada y copiada al portapapeles", "success"))
