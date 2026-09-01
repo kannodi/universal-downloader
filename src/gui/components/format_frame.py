@@ -15,7 +15,7 @@ class FormatFrame(ctk.CTkFrame):
         inner = ctk.CTkFrame(self, fg_color="transparent")
         inner.pack(fill="x", padx=10, pady=8)
         
-        self.download_type = ctk.StringVar(value="video")
+        self.download_type = ctk.StringVar(value=config.get("download_type", "video"))
         
         # Selectors Row
         row1 = ctk.CTkFrame(inner, fg_color="transparent")
@@ -36,24 +36,33 @@ class FormatFrame(ctk.CTkFrame):
         self.audio_radio.pack(side="left", padx=(0, 15))
         
         # Quality (Remove label, direct combo)
+        is_video = self.download_type.get() == "video"
+        quality_values = ["Mejor", "1080p", "720p", "480p", "360p"] if is_video else ["320kbps", "256kbps", "192kbps", "128kbps"]
+        saved_quality = config.get("last_video_quality" if is_video else "last_audio_quality", "1080p" if is_video else "320kbps")
+        
         self.quality_combo = ctk.CTkComboBox(
-            row1, values=["Mejor", "1080p", "720p", "480p", "360p"],
+            row1, values=quality_values,
             width=95, height=26, font=ctk.CTkFont(size=11),
             fg_color=COLORS["bg_tertiary"], border_color=COLORS["accent"],
-            button_color=COLORS["accent"], dropdown_fg_color=COLORS["bg_tertiary"]
+            button_color=COLORS["accent"], dropdown_fg_color=COLORS["bg_tertiary"],
+            command=self._on_quality_change
         )
         self.quality_combo.pack(side="left", padx=(0, 10))
-        self.quality_combo.set("1080p")
+        self.quality_combo.set(saved_quality if saved_quality in quality_values else quality_values[0])
         
         # Format (Remove label, direct combo)
+        format_values = ["mp4", "mkv", "webm"] if is_video else ["mp3", "m4a", "wav", "flac"]
+        saved_format = config.get("last_video_format" if is_video else "last_audio_format", "mp4" if is_video else "mp3")
+        
         self.format_combo = ctk.CTkComboBox(
-            row1, values=["mp4", "mkv", "webm"],
+            row1, values=format_values,
             width=85, height=26, font=ctk.CTkFont(size=11),
             fg_color=COLORS["bg_tertiary"], border_color=COLORS["accent"],
-            button_color=COLORS["accent"], dropdown_fg_color=COLORS["bg_tertiary"]
+            button_color=COLORS["accent"], dropdown_fg_color=COLORS["bg_tertiary"],
+            command=self._on_format_change
         )
         self.format_combo.pack(side="left")
-        self.format_combo.set("mp4")
+        self.format_combo.set(saved_format if saved_format in format_values else format_values[0])
 
         # Output Path widgets (Remove label)
         self.path_row = ctk.CTkFrame(inner, fg_color="transparent")
@@ -97,7 +106,7 @@ class FormatFrame(ctk.CTkFrame):
         self.always_on_top_check.grid(row=0, column=1, sticky="w", pady=(0, 6))
         
         # Row 1
-        self.desktop_var = ctk.BooleanVar(value=False)
+        self.desktop_var = ctk.BooleanVar(value=config.get("desktop_destination", False))
         self.desktop_check = ctk.CTkCheckBox(
             self.options_grid, text="Descargar en Escritorio",
             variable=self.desktop_var, command=self._toggle_desktop_path,
@@ -106,10 +115,10 @@ class FormatFrame(ctk.CTkFrame):
         )
         self.desktop_check.grid(row=1, column=0, sticky="w", pady=(0, 6), padx=(0, 15))
         
-        self.clipboard_var = ctk.BooleanVar(value=False)
+        self.clipboard_var = ctk.BooleanVar(value=config.get("copy_to_clipboard", False))
         self.clipboard_check = ctk.CTkCheckBox(
             self.options_grid, text="Copiar al portapapeles",
-            variable=self.clipboard_var,
+            variable=self.clipboard_var, command=self._on_clipboard_change,
             font=ctk.CTkFont(size=11), fg_color=COLORS["accent"],
             checkbox_height=16, checkbox_width=16
         )
@@ -145,16 +154,20 @@ class FormatFrame(ctk.CTkFrame):
         self.end_entry.pack(side="left")
         self.end_entry.insert(0, "0:00")
         
-        self.no_audio_var = ctk.BooleanVar(value=False)
+        self.no_audio_var = ctk.BooleanVar(value=config.get("mute_video", False) if is_video else False)
         self.no_audio_check = ctk.CTkCheckBox(
             icons_row_frame, text="🔇",
-            variable=self.no_audio_var,
+            variable=self.no_audio_var, command=self._on_no_audio_change,
             font=ctk.CTkFont(size=11), fg_color=COLORS["accent"],
             checkbox_height=16, checkbox_width=16
         )
         self.no_audio_check.pack(side="left", padx=(15, 0))
+        if not is_video:
+            self.no_audio_check.configure(state="disabled")
         
         self._saved_user_path = ""
+        if self.desktop_var.get():
+            self._toggle_desktop_path()
 
     def _toggle_trim_inputs(self):
         if self.trim_var.get():
@@ -183,7 +196,9 @@ class FormatFrame(ctk.CTkFrame):
         self.end_entry.insert(0, end)
 
     def _toggle_desktop_path(self):
-        if self.desktop_var.get():
+        is_desktop = self.desktop_var.get()
+        config.set("desktop_destination", is_desktop)
+        if is_desktop:
             self._saved_user_path = self.path_entry.get().strip()
             desktop = os.path.join(os.path.expanduser("~"), "Desktop")
             self.path_entry.delete(0, "end")
@@ -196,6 +211,26 @@ class FormatFrame(ctk.CTkFrame):
             self.browse_btn.configure(state="normal")
             self.path_entry.delete(0, "end")
             self.path_entry.insert(0, self._saved_user_path or config.get_download_path())
+
+    def _on_clipboard_change(self):
+        config.set("copy_to_clipboard", self.clipboard_var.get())
+
+    def _on_no_audio_change(self):
+        config.set("mute_video", self.no_audio_var.get())
+
+    def _on_quality_change(self, value: str):
+        is_video = self.download_type.get() == "video"
+        if is_video:
+            config.set("last_video_quality", value)
+        else:
+            config.set("last_audio_quality", value)
+
+    def _on_format_change(self, value: str):
+        is_video = self.download_type.get() == "video"
+        if is_video:
+            config.set("last_video_format", value)
+        else:
+            config.set("last_audio_format", value)
 
     def is_clipboard_enabled(self) -> bool:
         return self.clipboard_var.get()
@@ -223,17 +258,20 @@ class FormatFrame(ctk.CTkFrame):
 
     def _on_type_change(self):
         is_video = self.download_type.get() == "video"
+        config.set("download_type", "video" if is_video else "audio")
+        
         if is_video:
             self.quality_combo.configure(values=["Mejor", "1080p", "720p", "480p", "360p"])
-            self.quality_combo.set("1080p")
+            self.quality_combo.set(config.get("last_video_quality", "1080p"))
             self.format_combo.configure(values=["mp4", "mkv", "webm"])
-            self.format_combo.set("mp4")
+            self.format_combo.set(config.get("last_video_format", "mp4"))
+            self.no_audio_var.set(config.get("mute_video", False))
             self.no_audio_check.configure(state="normal")
         else:
             self.quality_combo.configure(values=["320kbps", "256kbps", "192kbps", "128kbps"])
-            self.quality_combo.set("320kbps")
+            self.quality_combo.set(config.get("last_audio_quality", "320kbps"))
             self.format_combo.configure(values=["mp3", "m4a", "wav", "flac"])
-            self.format_combo.set("mp3")
+            self.format_combo.set(config.get("last_audio_format", "mp3"))
             self.no_audio_var.set(False)
             self.no_audio_check.configure(state="disabled")
         self.on_type_change()

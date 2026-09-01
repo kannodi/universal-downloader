@@ -15,10 +15,18 @@ DEFAULTS = {
     "default_audio_format": "mp3",
     "default_video_quality": "1080p",
     "default_audio_quality": "320kbps",
+    "last_video_format": "mp4",
+    "last_audio_format": "mp3",
+    "last_video_quality": "1080p",
+    "last_audio_quality": "320kbps",
+    "download_type": "video",
     "remember_location": True,
     "theme": "dark",
     "check_updates_on_start": True,
-    "always_on_top": False
+    "always_on_top": False,
+    "desktop_destination": False,
+    "copy_to_clipboard": False,
+    "mute_video": False
 }
 
 class Config:
