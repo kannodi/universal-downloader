@@ -1,31 +1,27 @@
 import threading
 import os
 import hashlib
-try:
-    import pygame
-    PYGAME_LOADED = True
-except ImportError:
-    PYGAME_LOADED = False
 from typing import Optional, Callable, Dict
 import yt_dlp
 from src.video_downloader import VideoDownloader, detect_url_type
 from src.spotify_downloader import SpotifyDownloader
+from src.runtime import ydl_options
+from src.gui.clipboard_manager import ClipboardManager
+from src.gui.preview_manager import PreviewPlayer, PYGAME_LOADED
 
 class DownloadController:
     """Handles threading, audio playback, preview downloads, and main downloads asynchronously."""
-    
+
     def __init__(self, ui):
         self.ui = ui
         self.video_downloader = VideoDownloader(progress_callback=self._on_progress)
         self.spotify_downloader = SpotifyDownloader(progress_callback=self._on_progress)
-        
+        self.preview_player = PreviewPlayer()
+
         # Concurrency & Playback state
         self._is_analyzing = False
         self._is_downloading = False
-        self._preview_playing = False
-        self._preview_file = None
-        self._playback_start_offset = 0
-        self._is_paused = False
+        self._cancel_flag = threading.Event()
         self._active_widgets = None
         self._current_formats = {}
         self._playlist_info = None
@@ -43,24 +39,24 @@ class DownloadController:
         """Downloads a preview of the video and launches the custom VideoPreviewDialog (or plays audio inline if audio mode)."""
         url = self._download_url or self.ui.url_frame.get_url()
         if not url: return
-        
+
         # If download type is Audio, play audio inline instead of opening the video dialog
         if self.ui.format_frame.download_type.get() == "audio":
             self.download_preview(url)
             return
-            
+
         self.ui._update_status("⚡ Descargando vista previa de video...", "info")
         self.ui.open_video_btn.configure(state="disabled")
-        
+
         def run_preview_download():
             try:
                 cache_dir = os.path.join(os.getcwd(), ".video_cache")
                 if not os.path.exists(cache_dir):
                     os.makedirs(cache_dir)
-                    
+
                 url_hash = hashlib.md5(url.encode()).hexdigest()[:8]
                 temp_video = os.path.join(cache_dir, f"vid_{url_hash}.mp4")
-                
+
                 if not os.path.exists(temp_video):
                     # Downloader options for worst quality (lightweight) full file
                     ydl_opts = {
@@ -69,9 +65,9 @@ class DownloadController:
                         'quiet': True,
                         'no_warnings': True,
                     }
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    with yt_dlp.YoutubeDL(ydl_options(ydl_opts)) as ydl:
                         ydl.download([url])
-                
+
                 # Retrieve actual output filename
                 actual_file = temp_video if os.path.exists(temp_video) else None
                 if not actual_file:
@@ -79,7 +75,7 @@ class DownloadController:
                         if f.startswith(f"vid_{url_hash}") and f.endswith(".mp4"):
                             actual_file = os.path.join(cache_dir, f)
                             break
-                            
+
                 if actual_file:
                     self.ui.after(0, lambda: self.ui._update_status("Listo para reproducir", "success"))
                     # Launch pop-up dialog
@@ -88,13 +84,22 @@ class DownloadController:
                 else:
                     self.ui.after(0, lambda: self.ui._update_status("Error al descargar vista previa", "error"))
             except Exception as e:
-                self.ui.after(0, lambda: self.ui._update_status(f"Error preview: {str(e)}", "error"))
+                self.ui.after(0, lambda error=str(e): self.ui._update_status(f"Error preview: {error}", "error"))
             finally:
                 self.ui.after(0, lambda: self.ui.open_video_btn.configure(state="normal"))
 
         threading.Thread(target=run_preview_download, daemon=True).start()
 
+    def cancel_download(self):
+        """Sets the flag to cancel any active download."""
+        if self._is_downloading:
+            self.ui._update_status("Cancelando descarga...", "warning")
+            self._cancel_flag.set()
+
     def _on_progress(self, progress: dict):
+        if self._cancel_flag.is_set():
+            raise yt_dlp.utils.DownloadCancelled("Cancelado por el usuario")
+
         status = progress.get('status', '')
         if status == 'downloading':
             percent = progress.get('percent', 0)
@@ -104,73 +109,10 @@ class DownloadController:
             ))
         elif status == 'finished':
             self.ui.after(0, lambda: self.ui.progress_bar.set(1))
-            self.ui.after(0, lambda: self.ui.progress_label.configure(text="Descarga completada"))
-            
-            # Copy to clipboard if enabled
-            filename = progress.get('filename')
-            if filename and self.ui.format_frame.is_clipboard_enabled():
-                def copy_file_to_clipboard(file_path):
-                    try:
-                        # 1. Resolve final path if extension changed during post-processing
-                        actual_path = file_path
-                        download_type = self.ui.format_frame.download_type.get()
-                        
-                        if download_type == "audio":
-                            target_ext = self.ui.format_frame.format_combo.get() # mp3, wav, etc.
-                            base, _ = os.path.splitext(file_path)
-                            possible_path = f"{base}.{target_ext}"
-                            if os.path.exists(possible_path):
-                                actual_path = possible_path
-                        
-                        # Wait briefly for postprocessors/FFmpeg to finish renaming the file
-                        import time
-                        retries = 10
-                        while not os.path.exists(actual_path) and retries > 0:
-                            time.sleep(0.5)
-                            retries -= 1
-                            
-                        if not os.path.exists(actual_path):
-                            # Try searching directory for matching title if yt-dlp reported temp format
-                            dir_name = os.path.dirname(actual_path)
-                            base_name = os.path.splitext(os.path.basename(actual_path))[0]
-                            found = False
-                            if os.path.isdir(dir_name):
-                                for f in os.listdir(dir_name):
-                                    if os.path.splitext(f)[0] == base_name:
-                                        actual_path = os.path.join(dir_name, f)
-                                        found = True
-                                        break
-                            if not found:
-                                self.ui.after(0, lambda: self.ui._update_status("Descarga completada (no se encontró archivo final para portapapeles)", "warning"))
-                                return
-
-                        # 2. Call elevated/clean PowerShell command using System.Windows.Forms to set File Drop List (real file copy)
-                        # Escape single quotes for PowerShell (single quotes are doubled in PS strings)
-                        escaped_path = abs_path.replace("'", "''")
-                        ps_script = (
-                            "Add-Type -AssemblyName System.Windows.Forms; "
-                            "$list = New-Object System.Collections.Specialized.StringCollection; "
-                            f"[void]$list.Add('{escaped_path}'); "
-                            "[System.Windows.Forms.Clipboard]::SetFileDropList($list);"
-                        )
-                        cmd = f"powershell -NoProfile -Command \"{ps_script}\""
-                        
-                        import subprocess
-                        subprocess.run(cmd, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
-                        self.ui.after(0, lambda: self.ui._update_status("Descarga completada y copiada al portapapeles", "success"))
-                    except Exception as e:
-                        print(f"Error copying to clipboard: {e}")
-                        self.ui.after(0, lambda: self.ui._update_status("Descarga completada (error al copiar portapapeles)", "warning"))
-                
-                threading.Thread(target=copy_file_to_clipboard, args=(filename,), daemon=True).start()
-            else:
-                self.ui.after(0, lambda: self.ui._update_status("Descarga completada exitosamente", "success"))
-                
-            self.ui.after(0, lambda: self._set_downloading(False))
+            self.ui.after(0, lambda: self.ui.progress_label.configure(text="Procesando archivo..."))
         elif status == 'error':
             error = progress.get('error', 'Error desconocido')
             self.ui.after(0, lambda: self.ui._update_status(f"Error: {error}", "error"))
-            self.ui.after(0, lambda: self._set_downloading(False))
         elif status == 'starting':
             self.ui.after(0, lambda: self.ui.progress_label.configure(
                 text=progress.get('message', 'Iniciando...')
@@ -185,19 +127,20 @@ class DownloadController:
         if not url:
             self.ui._update_status("Por favor ingresa una URL", "warning")
             return
-            
-        if url == self._last_analyzed_url or self._is_analyzing:
+
+        if self._is_analyzing or self._is_downloading:
             return
-            
+
         self._is_analyzing = True
         self._last_analyzed_url = url
         self.ui.url_frame.set_analyzing(True)
         self.ui._update_status("🔍 Analizando URL...", "info")
-        
+
         self._active_widgets = None
         self._playlist_info = None
-        self._download_url = url
-        
+        self._download_url = None
+        self._trim_range = None
+
         # Clear UI components
         self.ui.playlist_frame.pack_forget()
         self.ui.spotify_search_frame.pack_forget()
@@ -206,13 +149,15 @@ class DownloadController:
         self.ui.info_frame.pack_forget()
         self.stop_preview()
 
+        preview_audio = self.ui.format_frame.download_type.get() == "audio"
+
         def analyze():
             try:
                 url_type = detect_url_type(url)
                 if url_type == "invalid":
                     self.ui.after(0, lambda: self.ui._update_status("URL no válida", "error"))
                     return
-                
+
                 self.ui.after(0, lambda: self.ui._update_site_theme(url_type))
 
                 if url_type == "spotify":
@@ -240,16 +185,16 @@ class DownloadController:
                             # Get full info metadata for thumbnail if single video
                             video_meta = self.video_downloader.get_video_info(url, extract_flat=True)
                             thumb_url = video_meta.get('thumbnail') if video_meta else None
-                            
+
                             self.ui.after(0, lambda t=title, u=uploader, d=duration, tb=thumb_url: self.ui._update_video_ui_simple(t, u, d, thumbnail_url=tb))
                     else:
                          self.ui.after(0, lambda: self.ui._update_video_ui_simple("Contenido detectado", "Listo para descargar"))
 
                 self.ui.after(0, lambda: self.ui._update_status("Análisis completado", "success"))
-                if PYGAME_LOADED and url_type in ["youtube", "spotify"] and self.ui.format_frame.download_type.get() == "audio":
+                if PYGAME_LOADED and url_type in ["youtube", "spotify"] and preview_audio:
                     self.ui.after(0, lambda: self.ui.player_frame.pack(fill="x", pady=(5, 0)))
             except Exception as e:
-                self.ui.after(0, lambda: self.ui._update_status(f"Error: {str(e)}", "error"))
+                self.ui.after(0, lambda error=str(e): self.ui._update_status(f"Error: {error}", "error"))
             finally:
                 self._is_analyzing = False
                 self.ui.after(0, lambda: self.ui.url_frame.set_analyzing(False))
@@ -257,52 +202,60 @@ class DownloadController:
         threading.Thread(target=analyze, daemon=True).start()
 
     def start_download(self):
+        if self._is_downloading or self._is_analyzing:
+            return
         url = self.ui.url_frame.get_url()
         output_path = self.ui.format_frame.get_output_path()
-        
+
+        if url != self._last_analyzed_url:
+            self._playlist_info = None
+            self._download_url = None
+
         if not url:
             self.ui._update_status("Por favor ingresa una URL", "warning")
             return
         if not output_path or not os.path.isdir(output_path):
             self.ui._update_status("Por favor selecciona una carpeta válida", "warning")
             return
-            
+
+        quality = self.ui.format_frame.quality_combo.get()
+        format_type = self.ui.format_frame.format_combo.get()
+        download_type = self.ui.format_frame.download_type.get()
+        playlist_choice = self.ui.playlist_choice.get()
+        active_trim = self.ui.format_frame.get_trim_range()
+        silent_video = self.ui.format_frame.is_no_audio_enabled()
+        clipboard_enabled = self.ui.format_frame.is_clipboard_enabled()
+        search_query = self.ui.spotify_search_entry.get().strip()
+
         self._set_downloading(True)
+        self._cancel_flag.clear()
         self.ui.progress_bar.set(0)
-        
+
         def download():
             try:
                 self.ui.after(0, lambda: self.ui._update_status("📡 Conectando...", "info"))
                 url_type = detect_url_type(url)
-                quality = self.ui.format_frame.quality_combo.get()
-                format_type = self.ui.format_frame.format_combo.get()
-                download_type = self.ui.format_frame.download_type.get()
-                
+
                 actual_url = url
                 if url_type == "search":
                     actual_url = self._download_url or f"ytsearch1:{url}"
                 elif self._playlist_info and self._playlist_info.get('is_playlist'):
-                    if self.ui.playlist_choice.get() == "single" and self._download_url:
+                    if playlist_choice == "single" and self._download_url:
                         actual_url = self._download_url
-                
-                # Pull trim range directly from the main UI frame controls
-                active_trim = self.ui.format_frame.get_trim_range()
-                
+
+                final_file = None
                 if url_type == "spotify":
-                    search_query = self.ui.spotify_search_entry.get().strip()
                     if not search_query:
                         self.ui.after(0, lambda: self.ui._update_status("Ingresa el nombre de la canción", "warning"))
                         self._set_downloading(False)
                         return
                     success, msg = self.spotify_downloader.download(url, output_path, format_type, quality, search_query)
+                    final_file = getattr(self.spotify_downloader, 'last_downloaded_file', None)
                 else:
                     download_as_playlist = False
                     if self._playlist_info and self._playlist_info.get('is_playlist'):
-                        download_as_playlist = (self.ui.playlist_choice.get() == "playlist")
-                    
-                    # Extract if no audio (mute) checkbox is enabled in format_frame
-                    silent_video = self.ui.format_frame.is_no_audio_enabled()
-                    
+                        download_as_playlist = (playlist_choice == "playlist")
+
                     if download_type == "video":
                         success = self.video_downloader.download_video(
                             actual_url, output_path, quality, format_type, download_as_playlist,
@@ -313,16 +266,38 @@ class DownloadController:
                             actual_url, output_path, quality, format_type, download_as_playlist,
                             trim_range=active_trim
                         )
-                
+                    final_file = getattr(self.video_downloader, 'last_downloaded_file', None)
+
                 # Reset trim range inside format_frame if finished
                 self.ui.after(0, lambda: self.ui.format_frame.trim_var.set(False))
                 self.ui.after(0, lambda: self.ui.format_frame._toggle_trim_inputs())
                 self._trim_range = None
-                
-                if not success:
-                    self.ui.after(0, lambda: self.ui._update_status("Error en la descarga", "error"))
+
+                if success:
+                    if final_file and os.path.exists(final_file) and clipboard_enabled:
+                        def on_clipboard_success():
+                            self.ui.after(0, lambda: self.ui._update_status("Descarga completada y copiada al portapapeles", "success"))
+
+                        def on_clipboard_error(err):
+                            self.ui.after(0, lambda: self.ui._update_status(f"Descarga completada (error portapapeles: {err})", "warning"))
+
+                        ClipboardManager.copy_file_to_clipboard_async(
+                            file_path=final_file,
+                            format_type=format_type,
+                            on_success=on_clipboard_success,
+                            on_error=on_clipboard_error
+                        )
+                    else:
+                        self.ui.after(0, lambda: self.ui._update_status("Descarga completada exitosamente", "success"))
+                else:
+                    if self._cancel_flag.is_set():
+                        self.ui.after(0, lambda: self.ui._update_status("Descarga cancelada", "warning"))
+                    else:
+                        self.ui.after(0, lambda: self.ui._update_status("Error en la descarga", "error"))
+            except yt_dlp.utils.DownloadCancelled:
+                self.ui.after(0, lambda: self.ui._update_status("Descarga cancelada", "warning"))
             except Exception as e:
-                self.ui.after(0, lambda: self.ui._update_status(f"Error: {str(e)}", "error"))
+                self.ui.after(0, lambda error=str(e): self.ui._update_status(f"Error: {error}", "error"))
             finally:
                 self._set_downloading(False)
 
@@ -331,20 +306,20 @@ class DownloadController:
     def download_preview(self, override_url=None):
         url = override_url or self._download_url or self.ui.url_frame.get_url()
         if not url: return
-        
+
         play_btn = self._active_widgets['play_btn'] if self._active_widgets else self.ui.player_frame.play_btn
         play_btn.configure(state="disabled", text="⌛")
         self.ui._update_status("⚡ Cargando avance rápido...", "info")
-        
+
         def do_download():
             try:
                 cache_dir = os.path.join(os.getcwd(), ".audio_cache")
                 if not os.path.exists(cache_dir):
                     os.makedirs(cache_dir)
-                
+
                 url_hash = hashlib.md5(url.encode()).hexdigest()[:8]
                 out_file = os.path.join(cache_dir, f"pre_{url_hash}.mp3")
-                
+
                 if not os.path.exists(out_file):
                     ydl_opts = {
                         'format': 'bestaudio/best',
@@ -359,23 +334,23 @@ class DownloadController:
                             'preferredquality': '128',
                         }],
                     }
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    with yt_dlp.YoutubeDL(ydl_options(ydl_opts)) as ydl:
                         ydl.download([url])
-                
+
                 actual_file = out_file if os.path.exists(out_file) else None
                 if not actual_file:
                     for f in os.listdir(cache_dir):
                         if f.startswith(f"pre_{url_hash}") and f.endswith(".mp3"):
                             actual_file = os.path.join(cache_dir, f)
                             break
-                
+
                 if actual_file:
-                    self._preview_file = actual_file
+                    self.preview_player.load_file(actual_file)
                     self.ui.after(0, self.start_playback)
                 else:
                     self.ui.after(0, lambda: self.ui._update_status("Error al cargar avance", "error"))
             except Exception as e:
-                self.ui.after(0, lambda: self.ui._update_status(f"Error preview: {str(e)}", "error"))
+                self.ui.after(0, lambda error=str(e): self.ui._update_status(f"Error preview: {error}", "error"))
             finally:
                 self.ui.after(0, lambda: play_btn.configure(state="normal", text="▶"))
 
@@ -383,12 +358,7 @@ class DownloadController:
 
     def start_playback(self):
         try:
-            if PYGAME_LOADED:
-                pygame.mixer.music.load(self._preview_file)
-                pygame.mixer.music.play(start=self._playback_start_offset)
-                self._preview_playing = True
-                self._is_paused = False
-                
+            if self.preview_player.play():
                 play_btn = self._active_widgets['play_btn'] if self._active_widgets else self.ui.player_frame.play_btn
                 play_btn.configure(text="⏸")
                 self.update_player_slider()
@@ -397,99 +367,69 @@ class DownloadController:
             self.ui._update_status(f"Error playback: {str(e)}", "error")
 
     def toggle_playback(self):
-        if not self._preview_file:
+        if not self.preview_player.has_file:
             self.download_preview()
             return
-            
+
         play_btn = self._active_widgets['play_btn'] if self._active_widgets else self.ui.player_frame.play_btn
 
-        if self._preview_playing:
-            if PYGAME_LOADED:
-                pygame.mixer.music.pause()
-            self._preview_playing = False
-            self._is_paused = True
-            play_btn.configure(text="▶")
-        else:
-            if PYGAME_LOADED:
-                try:
-                    if self._is_paused:
-                        pygame.mixer.music.unpause()
-                    else:
-                        pygame.mixer.music.play(start=self._playback_start_offset)
-                except:
-                    pygame.mixer.music.load(self._preview_file)
-                    pygame.mixer.music.play(start=self._playback_start_offset)
-            self._preview_playing = True
-            self._is_paused = False
-            play_btn.configure(text="⏸")
-            self.update_player_slider()
+        if self.preview_player.toggle():
+            if self.preview_player.is_playing:
+                play_btn.configure(text="⏸")
+                self.update_player_slider()
+            else:
+                play_btn.configure(text="▶")
 
     def stop_preview(self):
-        if PYGAME_LOADED:
-            try:
-                pygame.mixer.music.stop()
-                pygame.mixer.music.unload()
-            except: pass
-        self._preview_playing = False
-        self._is_paused = False
-        self._preview_file = None
-        self._playback_start_offset = 0
-        
+        self.preview_player.stop()
+
         play_btn = self._active_widgets['play_btn'] if self._active_widgets else (self.ui.player_frame.play_btn if hasattr(self.ui, 'player_frame') else None)
         slider = self._active_widgets['slider'] if self._active_widgets else (self.ui.player_frame.player_slider if hasattr(self.ui, 'player_frame') else None)
-        
+
         if play_btn: play_btn.configure(text="▶")
         if slider: slider.set(0)
 
     def seek_audio(self, value):
-        if self._preview_file and PYGAME_LOADED:
+        if self.preview_player.has_file:
             duration = self._current_formats.get('duration', 0)
             if duration == 0: duration = 30
-            
+
             pos = (float(value) / 100) * duration
-            self._playback_start_offset = pos
-            try:
-                pygame.mixer.music.play(start=pos)
-                if not self._preview_playing:
-                    pygame.mixer.music.pause()
-                else:
-                    self.update_player_slider()
-            except:
-                pass
+            self.preview_player.seek(pos)
+            if self.preview_player.is_playing:
+                self.update_player_slider()
 
     def update_player_slider(self):
-        if not self._preview_playing or not PYGAME_LOADED:
+        if not self.preview_player.is_playing:
             return
 
-        if not pygame.mixer.music.get_busy() and self._preview_playing:
-            self._preview_playing = False
+        current_ms = self.preview_player.get_position()
+        if current_ms == -2: # Finished playing naturally
             play_btn = self._active_widgets['play_btn'] if self._active_widgets else self.ui.player_frame.play_btn
             play_btn.configure(text="▶")
-            self._playback_start_offset = 0
+            return
+        elif current_ms < 0:
             return
 
-        current_ms = pygame.mixer.music.get_pos()
-        if current_ms < 0: return
-        
-        current_sec = self._playback_start_offset + (current_ms / 1000.0)
+        current_sec = self.preview_player._playback_start_offset + (current_ms / 1000.0)
         duration = self._current_formats.get('duration', 0)
         if duration == 0: duration = 30
-        
+
         progress = (current_sec / duration) * 100
-        
+
         slider = self._active_widgets['slider'] if self._active_widgets else self.ui.player_frame.player_slider
         time_label = self._active_widgets['time_label'] if self._active_widgets else self.ui.player_frame.time_label
-        
+
         slider.set(progress)
         cur_min, cur_sec = int(current_sec) // 60, int(current_sec) % 60
         dur_min, dur_sec = int(duration) // 60, int(duration) % 60
         time_label.configure(text=f"{cur_min:02d}:{cur_sec:02d} / {dur_min:02d}:{dur_sec:02d}")
-        
-        if self._preview_playing:
+
+        if self.preview_player.is_playing:
             self.ui.after(500, self.update_player_slider)
 
     def preview_result(self, result, slider, time_label, play_btn):
-        if self._download_url == result['url'] and self._preview_file:
+        if self._download_url == result['url'] and self.preview_player.has_file:
             self.toggle_playback()
             return
         self.stop_preview()
@@ -512,8 +452,8 @@ class DownloadController:
             'duration': result.get('duration', 0)
         }
         self.ui._update_video_ui_simple(
-            result['title'], 
-            result.get('uploader', 'Unknown'), 
+            result['title'],
+            result.get('uploader', 'Unknown'),
             result.get('duration', 0),
             show_player=False,
             thumbnail_url=result.get('thumbnail')

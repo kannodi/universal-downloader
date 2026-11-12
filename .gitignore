@@ -45,9 +45,10 @@ Thumbs.db
 # Config (optional - uncomment if you want to exclude user config)
 # .universal_downloader/
 
-# Test files
-test_*.py
+# Local debugging files
 embed_page.html
 
 # App caches
 .audio_cache/
+.video_cache/
+bin/

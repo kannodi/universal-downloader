@@ -248,6 +248,7 @@ class UniversalDownloader(ctk.CTk):
             main_frame,
             on_analyze=self.controller.analyze_url,
             on_download=self.controller.start_download,
+            on_cancel=self.controller.cancel_download,
             on_paste=self.controller.analyze_url
         )
         self.url_frame.pack(fill="x", pady=(0, 0))
@@ -465,7 +466,7 @@ class UniversalDownloader(ctk.CTk):
             # Keep info_frame visible and pack player_frame under it
             if self.content_title_label.cget("text"):
                 self.info_frame.pack(fill="x", pady=(10, 0), after=self.url_frame)
-                if self.controller._preview_file and PYGAME_LOADED:
+                if self.controller.preview_player.has_file and PYGAME_LOADED:
                     self.player_frame.pack(fill="x", pady=(10, 0), after=self.info_frame)
 
     def _update_status(self, message: str, status_type: str = "info"):

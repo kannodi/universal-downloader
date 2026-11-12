@@ -1,72 +1,87 @@
-# 🎵 Universal Downloader
+# Universal Downloader
 
-Aplicación de escritorio moderna y fácil de usar para descargar videos y música de **YouTube**, **Spotify** y más de **1000 sitios** de internet. 
+Aplicación de escritorio en Python y CustomTkinter para buscar contenido en YouTube y descargar audio o video con yt-dlp. La compatibilidad con otros sitios depende de los extractores de yt-dlp y del acceso disponible a cada recurso.
 
-Diseñada para ser sencilla: pegás el enlace, elegís el formato y descargás.
+## Inicio en Windows
 
----
+1. Instala Python con Tkinter y activa **Add Python to PATH**.
+2. Descarga o clona este repositorio.
+3. Ejecuta `start.bat`. Crea `venv`, instala `requirements.txt` y abre la aplicación.
+4. Si falta FFmpeg, utiliza el diálogo de dependencias para instalarlo en `bin/`, o instala FFmpeg y FFprobe en el PATH.
 
-## 🚀 Guía de Inicio Rápido (Para todo público)
+El instalador integrado de FFmpeg está destinado a Windows y necesita conexión a Internet. El entorno existente del proyecto utiliza Python 3.14; la compatibilidad de otras versiones depende de las dependencias instaladas. No hay una matriz de versiones certificada.
 
-Seguí estos pasos sencillos para instalar y hacer funcionar el programa en tu computadora.
+### Instalación manual y diagnóstico
 
-### Paso 1: Instalar Python
-El programa está construido sobre Python. Si no lo tenés instalado:
-1. Entrá a [python.org](https://www.python.org/downloads/) y descargá la última versión para Windows.
-2. **IMPORTANTE:** Al abrir el instalador, asegurate de marcar la casilla que dice **"Add Python to PATH"** (o "Agregar Python al PATH") abajo del todo antes de darle a instalar. Si no marcás esto, el programa no va a funcionar.
-
-### Paso 2: Instalar FFmpeg (Necesario para convertir audios y videos)
-FFmpeg es un motor interno que usa el programa para procesar y unir los archivos de audio y video.
-* **En Windows (Sencillo):**
-  1. Abrí el menú inicio de tu computadora, escribí `Terminal` o `PowerShell` y abrilo.
-  2. Copiá y pegá el siguiente comando y apretá Enter:
-     ```powershell
-     winget install ffmpeg
-     ```
-  3. Cerrá la ventana cuando termine.
-
-### Paso 3: Descargar y Preparar el Programa
-1. Descargá este proyecto a tu computadora (haciendo clic en el botón verde **Code** -> **Download ZIP** arriba a la derecha y descomprimilo en una carpeta).
-2. Abrí la carpeta del programa.
-3. Buscá el archivo llamado **`start.bat`** y hacé doble clic en él. 
-   * *La primera vez que lo abras, instalará automáticamente todas las herramientas necesarias de forma segura y luego abrirá la aplicación.*
-
----
-
-## 🎮 Cómo Usar la Aplicación
-
-1. **Pegá la URL:** Copiá el enlace de la canción de Spotify o del video de YouTube y pegalo en la barra de texto superior.
-2. **Analizá:** Presioná el botón **Analizar**. El programa cambiará de color según la plataforma y buscará el archivo automáticamente.
-3. **Elegí tu formato y calidad:** 
-   * Seleccioná **Video** (si querés guardarlo con imagen en calidad 1080p, 720p, etc.).
-   * Seleccioná **Audio** (si solo querés la música en formato MP3 o similar).
-4. **Elegí dónde guardarlo:** Hacé clic en **Examinar** para elegir en qué carpeta de tu computadora querés que se guarde la descarga.
-5. **Descargá:** Presioná **Descargar**. Verás el progreso en la barra inferior.
-
----
-
-## ⚙️ Características Técnicas (Para Desarrolladores)
-
-El proyecto cuenta con una arquitectura desacoplada basada en componentes independientes de GUI y un controlador de descargas asíncrono para evitar el bloqueo del hilo de interfaz gráfica de CustomTkinter.
-
-```
-downloader/
-├── main.py                 # Punto de entrada de la aplicación
-├── requirements.txt        # Librerías de Python requeridas
-├── start.bat               # Script automatizado de instalación y arranque rápido
-└── src/
-    ├── app.py             # Ventana principal (Ensamblador de UI)
-    ├── config.py          # Manejo de opciones guardadas del usuario (.json)
-    ├── dependency_checker.py # Verificador del entorno de ejecución (ffmpeg, yt-dlp)
-    ├── video_downloader.py    # Lógica de descarga nativa de videos
-    ├── spotify_downloader.py  # Lógica de conversión de enlaces Spotify a YouTube
-    └── gui/               # Componentes aislados de la interfaz
-        ├── colors.py          # Paleta visual del proyecto
-        ├── controller.py      # Controlador de hilos asíncronos y reproductor
-        └── components/        # Sub-paneles interactivos de la aplicación
+```powershell
+python -m venv venv
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
+.\venv\Scripts\python.exe main.py
 ```
 
----
+Ejecuta el último comando desde la raíz del proyecto para ver los errores en consola. `start.bat` inicia la aplicación con `pythonw.exe`, que no muestra una consola.
 
-## 📜 Licencia
-Este proyecto es para uso educativo y personal. Asegurate de cumplir con las políticas y leyes de copyright de tu país.
+La reproducción de avances de audio usa **pygame**, una dependencia opcional:
+
+```powershell
+.\venv\Scripts\python.exe -m pip install -r requirements-preview.txt
+```
+
+Si pygame no tiene una distribución compatible con tu versión de Python, puedes mantener las descargas sin esa función. La vista previa de video usa OpenCV y Pillow; el audio del reproductor depende de que pygame pueda abrir el archivo.
+
+## Uso
+
+1. Pega una URL o escribe una búsqueda y pulsa **Analizar**.
+2. Si aparece una lista de resultados, selecciona el contenido.
+3. Elige audio o video, formato, calidad y carpeta de destino.
+4. Opcionalmente activa recorte, video sin audio o copia al portapapeles.
+5. Pulsa **Descargar**. La conversión con FFmpeg puede continuar después de terminar la transferencia.
+
+Para listas compatibles, la interfaz permite elegir un elemento o la lista completa. El descargador de video/audio omite contenido de más de **30 minutos**; ese filtro no se aplica al flujo de Spotify.
+
+### Qué hace el soporte de Spotify
+
+Lee metadatos de la página pública de inserción de Spotify y busca una coincidencia en YouTube. Si no encuentra el nombre, debes introducirlo manualmente. **No descarga el audio original de Spotify**. Un enlace de álbum o lista se usa para obtener texto de búsqueda; no implementa la descarga completa de todas sus canciones.
+
+## Datos y dependencias
+
+| Elemento | Ubicación o función |
+| --- | --- |
+| Preferencias | `~/.universal_downloader/config.json` |
+| FFmpeg y FFprobe locales | `bin/`, junto a `main.py`; también se admite PATH |
+| Avances temporales | `.audio_cache/` y `.video_cache/` en el directorio de ejecución |
+| Motor de descargas | yt-dlp |
+| Interfaz | CustomTkinter y Tkinter |
+| Imágenes y video | Pillow y OpenCV |
+| Metadatos de Spotify | requests |
+| Reproducción opcional | pygame |
+
+Las preferencias se guardan mediante un archivo temporal y sustitución atómica para reducir el riesgo de corrupción. La opción de cookies del navegador se comparte entre descargas y avances. Usa esa opción solo si el contenido requiere tu sesión.
+
+## Desarrollo
+
+```powershell
+.\venv\Scripts\python.exe -m unittest discover -s tests -v
+.\venv\Scripts\python.exe -m compileall -q src main.py tests
+```
+
+Las pruebas son locales y simulan yt-dlp, errores de FFmpeg y callbacks; no descargan archivos de Internet ni sustituyen una prueba manual de la interfaz.
+
+- [Arquitectura y decisiones](docs/ARCHITECTURE.md)
+- [Revisión y limitaciones](docs/REVIEW.md)
+- [Guía de contribución](CONTRIBUTING.md)
+
+## Solución de problemas
+
+| Síntoma | Comprobación |
+| --- | --- |
+| La ventana se cierra al abrir | Ejecuta `main.py` desde consola y revisa el error |
+| Falla la conversión o unión | Comprueba `ffmpeg -version` y `ffprobe -version`, o reinstala los binarios locales |
+| Spotify no encuentra el nombre | Introduce canción y artista manualmente; los metadatos públicos pueden cambiar |
+| Un sitio rechaza el acceso | Actualiza yt-dlp desde el diálogo, comprueba la URL y, si corresponde, las cookies |
+| No funciona el avance de audio | Instala pygame y comprueba que hay un dispositivo de audio disponible |
+| No se genera un archivo | Comprueba el límite de duración, el acceso al contenido y los mensajes de yt-dlp |
+
+## Licencia
+
+El repositorio no incluye un archivo `LICENSE` con una licencia de software explícita. El uso previsto es educativo y personal; descarga contenido para el que tengas autorización.

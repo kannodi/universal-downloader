@@ -1,0 +1,3 @@
+# Optional audio playback; install separately if a wheel is available for your Python.
+-r requirements.txt
+pygame>=2.5.0
